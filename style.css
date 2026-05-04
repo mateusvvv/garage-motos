@@ -1,0 +1,41 @@
+/* Tema FullCalendar Red & Black */
+.fc {
+    --fc-border-color: #262626;
+    --fc-button-bg-color: #e11d48;
+    --fc-button-border-color: #e11d48;
+    --fc-button-hover-bg-color: #be123c;
+    --fc-button-active-bg-color: #9f1239;
+    --fc-today-bg-color: #171717;
+}
+
+.fc-daygrid-day-number {
+    color: #fff !important;
+    text-decoration: none !important;
+    padding: 8px !important;
+}
+
+.fc-toolbar-title {
+    font-size: 1.25rem !important;
+    font-weight: 900 !important;
+    text-transform: uppercase;
+    font-style: italic;
+}
+
+/* Estilização Customizada */
+::-webkit-scrollbar {
+    width: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+    background: #e11d48;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    border-color: #e11d48;
+}
+.product-card {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
