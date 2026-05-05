@@ -6,6 +6,8 @@ import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "
 let products = JSON.parse(localStorage.getItem('gm_products')) || [];
 let serviceOrders = JSON.parse(localStorage.getItem('gm_orders')) || [];
 let appointmentRequests = []; // Sincronizado em tempo real com o Firebase
+let pickerCalendar;
+let tempSelectedDate = '';
 
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('calendar')) initCalendar();
@@ -80,6 +82,9 @@ function toggleAdmin() {
 window.toggleMenu = toggleMenu;
 window.toggleAdmin = toggleAdmin;
 window.toggleShop = toggleShop;
+window.openAppointmentPicker = openAppointmentPicker;
+window.closeAppointmentPicker = closeAppointmentPicker;
+window.backToCalendar = backToCalendar;
 window.toggleAdminNav = toggleAdminNav;
 window.showAdminView = showAdminView;
 window.logoutAdmin = logoutAdmin;
@@ -307,10 +312,91 @@ function initCalendar() {
             appointmentRequests.push(data);
             calendarEvents.push(data);
         });
-        calendar.removeAllEvents();
-        calendarEvents.forEach(ev => calendar.addEvent(ev));
+        if (calendar) {
+            calendar.removeAllEvents();
+            calendarEvents.forEach(ev => calendar.addEvent(ev));
+        }
+        if (pickerCalendar) {
+            pickerCalendar.removeAllEvents();
+            calendarEvents.forEach(ev => pickerCalendar.addEvent(ev));
+        }
         if (auth.currentUser) renderAdminAppointments();
     });
+}
+
+function openAppointmentPicker() {
+    document.getElementById('appointment-picker-overlay').classList.remove('hidden');
+    document.getElementById('picker-step-1').classList.remove('hidden');
+    document.getElementById('picker-step-2').classList.add('hidden');
+    
+    if (!pickerCalendar) {
+        const calendarEl = document.getElementById('picker-calendar');
+        pickerCalendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'pt-br',
+            height: 'auto',
+            headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+            businessHours: { daysOfWeek: [1, 2, 3, 4, 5] },
+            events: appointmentRequests,
+            dateClick: function(info) {
+                const day = new Date(info.date).getUTCDay();
+                if (day === 0 || day === 6) return;
+                
+                // Verifica se o dia está bloqueado pelo Admin
+                const isBlocked = appointmentRequests.some(e => e.type === 'block' && e.start === info.dateStr);
+                if (isBlocked) {
+                    alert("Desculpe, esta data está indisponível.");
+                    return;
+                }
+
+                tempSelectedDate = info.dateStr;
+                const parts = info.dateStr.split('-');
+                document.getElementById('picked-day-display').textContent = `Agendando para ${parts[2]}/${parts[1]}`;
+                document.getElementById('picker-step-1').classList.add('hidden');
+                document.getElementById('picker-step-2').classList.remove('hidden');
+                renderClockGrid();
+            }
+        });
+    } else {
+        pickerCalendar.removeAllEvents();
+        appointmentRequests.forEach(ev => pickerCalendar.addEvent(ev));
+    }
+    setTimeout(() => pickerCalendar.render(), 100);
+}
+
+function renderClockGrid() {
+    const grid = document.getElementById('clock-grid');
+    grid.innerHTML = '';
+    // Das 07:00 às 17:00 (último horário disponível para início de serviço)
+    for (let h = 7; h <= 17; h++) {
+        ['00', '30'].forEach(m => {
+            if (h === 17 && m === '30') return;
+            const time = `${h.toString().padStart(2, '0')}:${m}`;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'hour-btn animate-fade-in';
+            btn.textContent = time;
+            btn.onclick = () => {
+                document.getElementById('service-date-only').value = tempSelectedDate;
+                document.getElementById('service-time-only').value = time;
+                const parts = tempSelectedDate.split('-');
+                document.getElementById('picker-label').textContent = 'Selecionado:';
+                document.getElementById('picker-selected').textContent = `${parts[2]}/${parts[1]} às ${time}`;
+                closeAppointmentPicker();
+            };
+            grid.appendChild(btn);
+        });
+    }
+}
+
+function backToCalendar() {
+    document.getElementById('picker-step-2').classList.add('hidden');
+    document.getElementById('picker-step-1').classList.remove('hidden');
+    pickerCalendar.render();
+}
+
+function closeAppointmentPicker() {
+    document.getElementById('appointment-picker-overlay').classList.add('hidden');
 }
 
 async function scheduleService(e) {

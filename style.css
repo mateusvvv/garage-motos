@@ -133,6 +133,34 @@ input[type="time"]::-webkit-calendar-picker-indicator {
     box-shadow: 0 10px 15px -3px rgba(225, 29, 72, 0.2);
 }
 
+/* Picker Calendar Customization */
+.picker-calendar-custom .fc-view-harness { height: 320px !important; }
+.picker-calendar-custom .fc-daygrid-day-number { font-size: 0.8rem !important; padding: 4px !important; }
+.picker-calendar-custom .fc-col-header-cell-cushion { font-size: 0.7rem; text-transform: uppercase; color: #737373; }
+.picker-calendar-custom .fc-toolbar-title { font-size: 1rem !important; color: #e11d48; }
+
+/* Estilo do Relógio (Grade de Horas) */
+.hour-btn {
+    background-color: #000;
+    border: 1px solid #262626;
+    padding: 1rem 0.5rem;
+    border-radius: 1rem;
+    font-weight: 900;
+    font-size: 1.1rem;
+    color: #fff;
+    transition: all 0.2s;
+    text-align: center;
+    font-style: italic;
+}
+.hour-btn:hover {
+    border-color: #e11d48;
+    background-color: #e11d48;
+    transform: scale(1.05);
+}
+
+.scrollbar-custom::-webkit-scrollbar { width: 4px; }
+.scrollbar-custom::-webkit-scrollbar-thumb { background: #262626; border-radius: 10px; }
+
 /* Estilização para Finais de Semana (Fechado) */
 .fc-day-sat, .fc-day-sun {
     background-color: rgba(0, 0, 0, 0.5) !important;
