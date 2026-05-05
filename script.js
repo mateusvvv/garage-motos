@@ -8,7 +8,7 @@ let serviceOrders = JSON.parse(localStorage.getItem('gm_orders')) || [];
 let appointmentRequests = []; // Sincronizado em tempo real com o Firebase
 
 document.addEventListener('DOMContentLoaded', () => {
-    initCalendar();
+    if (document.getElementById('calendar')) initCalendar();
     renderShop();
     renderHistory();
     updateRevenueFilterOptions();
@@ -287,6 +287,7 @@ function downloadOSPDF(osOrId) {
 let calendar;
 function initCalendar() {
     const calendarEl = document.getElementById('calendar');
+    if (!calendarEl) return;
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'pt-br',
@@ -439,14 +440,21 @@ function renderShop() {
     containers.forEach(({ el, limit }) => {
         if (!el) return;
         el.innerHTML = products.slice(0, limit).map(p => `
-            <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card">
-                <div class="h-32 md:h-48 bg-neutral-800 bg-cover bg-center" style="background-image: url('${p.image || ''}')">
-                    ${!p.image ? '<div class="flex items-center justify-center h-full text-neutral-600 font-bold uppercase tracking-widest text-[8px] md:text-xs text-center">Sem Foto</div>' : ''}
+            <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
+                <div class="h-40 md:h-56 bg-neutral-800 flex items-center justify-center p-2 overflow-hidden">
+                    ${p.image ? 
+                        `<img src="${p.image}" class="max-h-full max-w-full object-contain" alt="${p.name}">` : 
+                        '<div class="text-neutral-600 font-bold uppercase tracking-widest text-[8px] md:text-xs text-center">Sem Foto</div>'
+                    }
                 </div>
-                <div class="p-3 md:p-5">
+                <div class="p-3 md:p-5 flex flex-col flex-grow">
                     <h5 class="font-bold text-xs md:text-lg mb-1 truncate uppercase">${p.name}</h5>
                     <p class="text-red-600 font-black text-sm md:text-2xl mb-3 md:mb-4">R$ ${parseFloat(p.price).toFixed(2)}</p>
-                    <button class="w-full bg-white text-black py-1.5 md:py-2 rounded font-bold uppercase text-[8px] md:text-xs tracking-tighter hover:bg-red-600 hover:text-white transition">Comprar</button>
+                    <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de comprar o produto: ${encodeURIComponent(p.name)}" 
+                       target="_blank" 
+                       class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition">
+                       Comprar
+                    </a>
                 </div>
             </div>
         `).join('');
@@ -455,6 +463,7 @@ function renderShop() {
 
 function renderHistory() {
     const body = document.getElementById('os-history-body');
+    if (!body) return;
     body.innerHTML = serviceOrders.map((os, index) => `
         <tr class="text-sm">
             <td class="py-4 font-black text-red-600 italic leading-tight">
