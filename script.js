@@ -317,12 +317,15 @@ async function scheduleService(e) {
     e.preventDefault();
     const name = document.getElementById('client-name').value;
     const bike = document.getElementById('bike-info').value;
-    const date = document.getElementById('service-date').value;
+    const datePart = document.getElementById('service-date-only').value;
+    const timePart = document.getElementById('service-time-only').value;
+
+    if (!datePart || !timePart) return;
 
     try {
         await addDoc(collection(db, "appointments"), {
             title: `🛠️ ${bike} - ${name}`,
-            start: date,
+            start: `${datePart}T${timePart}`,
             color: '#e11d48',
             clientName: name,
             bikeInfo: bike,

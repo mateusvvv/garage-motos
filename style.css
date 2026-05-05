@@ -50,17 +50,16 @@ body {
     background-attachment: fixed;
 }
 
-/* Ajuste de visibilidade para o campo de data e hora no mobile */
-input[type="datetime-local"] {
-    color-scheme: dark;
-    background-color: #262626 !important; /* Cinza neutral-800 */
-    color: #ffffff !important;           /* Texto branco */
-    min-height: 56px;                    /* Garante boa área de toque no mobile */
+/* Ajuste de visibilidade para campos de data e hora */
+input[type="date"], input[type="time"] {
+    color-scheme: light; /* Força ícones pretos para fundo claro */
+    min-height: 58px;
 }
 
-/* Força o ícone do calendário a ficar visível (branco) em navegadores Webkit */
-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-    filter: invert(1);
+/* Remove ícones nativos se necessário ou garante que apareçam */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
 }
 
 /* Efeito para a Logo */
