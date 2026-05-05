@@ -134,8 +134,7 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 /* Picker Calendar Customization */
-/* Restaurado para o padrão anterior */
-.picker-calendar-custom .fc-view-harness { height: auto !important; min-height: 400px; }
+.picker-calendar-custom .fc-view-harness { min-height: 400px; }
 .picker-calendar-custom .fc-daygrid-day-number { font-size: 0.8rem !important; padding: 4px !important; }
 .picker-calendar-custom .fc-col-header-cell-cushion { font-size: 0.7rem; text-transform: uppercase; color: #737373; }
 .picker-calendar-custom .fc-toolbar-title { font-size: 1rem !important; color: #e11d48; }

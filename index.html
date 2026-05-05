@@ -131,7 +131,7 @@
         <!-- Dashboard Admin (Escondido por padrão) -->
         <div id="admin-dashboard-ui" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
             <div class="flex flex-col sm:flex-row justify-between items-center mb-12 border-b border-neutral-800 pb-6 gap-4 text-center sm:text-left">
-                <h2 class="text-2xl md:text-3xl font-black italic text-red-600 uppercase">Dashboard <span class="text-white">Admin</span></h2>
+                <h2 class="text-2xl md:text-3xl font-black italic text-red-600 uppercase">Dashboard <span id="admin-view-title" class="text-white">GESTÃO</span></h2>
                 <div class="flex items-center gap-2 md:gap-4">
                     <!-- Botão Menu solicitado -->
                     <button onclick="toggleAdminNav()" class="bg-red-600 px-4 py-2 rounded text-[10px] font-bold uppercase hover:bg-red-700 transition italic shadow-lg shadow-red-600/20">Menu</button>
@@ -143,12 +143,13 @@
             <!-- Menu de Navegação Interno (Tabs) -->
             <div id="admin-nav-menu" class="hidden grid grid-cols-3 gap-2 mb-12 animate-fade-in">
                 <button onclick="showAdminView('gestao')" class="admin-tab-btn active" id="btn-tab-gestao">Gestão</button>
-                <button onclick="showAdminView('agenda')" class="admin-tab-btn" id="btn-tab-agenda">Agenda/Vagas</button>
+                <button onclick="showAdminView('estoque')" class="admin-tab-btn" id="btn-tab-estoque">Gestão de Estoque</button>
                 <button onclick="showAdminView('financeiro')" class="admin-tab-btn" id="btn-tab-financeiro">Financeiro</button>
             </div>
 
-            <!-- VIEW: GESTÃO (O.S e Estoque) -->
-            <div id="view-gestao" class="admin-view grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <!-- VIEW: GESTÃO (O.S e Agendamentos) -->
+            <div id="view-gestao" class="admin-view space-y-12">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
                 <!-- Gerador de O.S -->
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
                     <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight">
@@ -170,10 +171,42 @@
                     </form>
                 </div>
 
-                <!-- Cadastro de Produtos -->
+                <!-- Próximos Agendamentos -->
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
                     <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight">
-                        <span class="w-2 h-6 bg-red-600 block"></span> Gestão de Estoque
+                        <span class="w-2 h-6 bg-red-600 block"></span> Próximos Agendamentos
+                    </h4>
+                    <div id="admin-appointments-list" class="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        <!-- Lista de solicitações de clientes -->
+                    </div>
+                </div>
+                </div>
+
+                <!-- Bloqueio de Agenda -->
+                <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
+                    <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight">
+                        <span class="w-2 h-6 bg-red-600 block"></span> Bloquear Data/Vaga
+                    </h4>
+                    <form id="block-date-form" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="md:col-span-1">
+                        <p class="text-xs text-neutral-500 uppercase font-bold mb-2">Use isso para marcar feriados ou dias lotados</p>
+                        <input type="date" id="block-date" class="w-full bg-black border border-neutral-700 p-4 rounded outline-none focus:border-red-600 transition text-white" required>
+                        </div>
+                        <div class="md:col-span-1 flex flex-col justify-end">
+                            <input type="text" id="block-reason" placeholder="Motivo (ex: Loteado, Feriado)" class="w-full bg-black border border-neutral-700 p-4 rounded outline-none focus:border-red-600 transition text-white">
+                        </div>
+                        <div class="md:col-span-1 flex flex-col justify-end">
+                            <button type="submit" class="w-full bg-neutral-700 py-4 font-black uppercase tracking-widest hover:bg-red-600 transition">Bloquear Dia</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- VIEW: ESTOQUE (Gestão de Produtos) -->
+            <div id="view-estoque" class="admin-view hidden">
+                <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800 max-w-4xl mx-auto">
+                    <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight">
+                        <span class="w-2 h-6 bg-red-600 block"></span> Cadastro e Gestão de Itens
                     </h4>
                     <form id="product-form" class="space-y-4">
                         <input type="hidden" id="prod-id">
@@ -183,36 +216,17 @@
                             <input type="number" id="prod-stock" placeholder="Quantidade" class="w-full bg-black p-3 rounded border border-neutral-700" required>
                         </div>
                         <input type="file" id="prod-image" accept="image/*" class="text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-neutral-800 file:text-white">
-                        <button type="submit" class="w-full bg-white text-black py-3 font-bold uppercase hover:bg-neutral-200 transition">Adicionar Item</button>
+                        <button type="submit" class="w-full bg-white text-black py-3 font-bold uppercase hover:bg-neutral-200 transition">Adicionar ao Estoque</button>
                         <button type="button" id="prod-cancel-edit" class="w-full bg-neutral-800 py-2 font-bold uppercase hover:bg-neutral-700 transition hidden">Cancelar Edição</button>
                     </form>
-
-                    <!-- Lista de Gerenciamento de Estoque -->
-                    <div id="admin-stock-list" class="mt-8 space-y-2 border-t border-neutral-800 pt-6 max-h-80 overflow-y-auto pr-2"></div>
-                </div>
-            </div>
-
-            <!-- VIEW: AGENDA (Agendamentos e Bloqueios) -->
-            <div id="view-agenda" class="admin-view hidden grid grid-cols-1 lg:grid-cols-2 gap-12">
-                <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
-                    <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight italic">
-                        <span class="w-2 h-6 bg-red-600 block"></span> Próximos Agendamentos
-                    </h4>
-                    <div id="admin-appointments-list" class="space-y-4 max-h-96 overflow-y-auto pr-2">
-                        <!-- Lista de solicitações de clientes -->
+                    
+                    <!-- Barra de Busca e Botão de Impressão -->
+                    <div class="mt-8 flex flex-col md:flex-row gap-4">
+                        <input type="text" id="stock-search" placeholder="Buscar no estoque..." class="flex-1 bg-black p-3 rounded border border-neutral-700 text-sm outline-none focus:border-red-600 transition">
+                        <button onclick="printLowStockReport()" class="bg-neutral-800 hover:bg-red-600 px-4 py-3 rounded text-[10px] font-bold uppercase transition italic border border-neutral-700">Lista de Compras</button>
                     </div>
-                </div>
 
-                <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
-                    <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight italic">
-                        <span class="w-2 h-6 bg-red-600 block"></span> Bloquear Data/Vaga
-                    </h4>
-                    <form id="block-date-form" class="space-y-4">
-                        <p class="text-xs text-neutral-500 uppercase font-bold mb-2">Use isso para marcar feriados ou dias lotados</p>
-                        <input type="date" id="block-date" class="w-full bg-black border border-neutral-700 p-4 rounded outline-none focus:border-red-600 transition text-white" required>
-                        <input type="text" id="block-reason" placeholder="Motivo (ex: Loteado, Feriado)" class="w-full bg-black border border-neutral-700 p-4 rounded outline-none focus:border-red-600 transition text-white">
-                        <button type="submit" class="w-full bg-neutral-700 py-3 font-black uppercase tracking-widest hover:bg-red-600 transition">Bloquear Dia</button>
-                    </form>
+                    <div id="admin-stock-list" class="mt-8 space-y-2 border-t border-neutral-800 pt-6 max-h-[500px] overflow-y-auto pr-2"></div>
                 </div>
             </div>
 

@@ -22,6 +22,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('appointment-form').addEventListener('submit', scheduleService);
     document.getElementById('block-date-form').addEventListener('submit', blockDate);
     document.getElementById('revenue-filter').addEventListener('change', renderChart);
+    document.getElementById('stock-search').addEventListener('input', (e) => {
+        renderAdminStock(e.target.value);
+    });
     document.getElementById('login-form').addEventListener('submit', loginAdmin);
     
     addPartRow(); // Inicia com uma linha de peça vazia
@@ -91,6 +94,7 @@ window.logoutAdmin = logoutAdmin;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.deleteAppointment = deleteAppointment;
+window.printLowStockReport = printLowStockReport;
 window.addPartRow = addPartRow;
 window.editOS = editOS;
 window.deleteOS = deleteOS;
@@ -102,6 +106,13 @@ function toggleAdminNav() {
 }
 
 function showAdminView(viewName) {
+    // Mapeamento de títulos para o cabeçalho
+    const viewTitles = {
+        'gestao': 'GESTÃO',
+        'estoque': 'ESTOQUE',
+        'financeiro': 'FINANCEIRO'
+    };
+
     // Esconde todas as views
     document.querySelectorAll('.admin-view').forEach(v => v.classList.add('hidden'));
     // Remove classe ativa de todos os botões
@@ -113,13 +124,15 @@ function showAdminView(viewName) {
     
     if (targetView) targetView.classList.remove('hidden');
     if (targetBtn) targetBtn.classList.add('active');
+
+    // Atualiza o título no topo do painel
+    document.getElementById('admin-view-title').textContent = viewTitles[viewName] || 'ADMIN';
     
     // Fecha o menu de navegação após selecionar
     document.getElementById('admin-nav-menu').classList.add('hidden');
     
     // Atualiza componentes específicos se necessário
     if (viewName === 'financeiro') renderChart();
-    if (viewName === 'agenda' && calendar) calendar.render();
 }
 
 function toggleShop() {
@@ -334,7 +347,6 @@ function openAppointmentPicker() {
         pickerCalendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'pt-br',
-            height: 'auto',
             headerToolbar: { left: 'prev', center: 'title', right: 'next' },
             validRange: {
                 start: new Date().toLocaleDateString('sv-SE') // Define hoje como data mínima (Formato YYYY-MM-DD)
@@ -411,6 +423,14 @@ async function scheduleService(e) {
     const timePart = document.getElementById('service-time-only').value;
 
     if (!datePart || !timePart) return;
+    
+    const fullDateTime = `${datePart}T${timePart}`;
+    const isDuplicate = appointmentRequests.some(app => app.start === fullDateTime);
+
+    if (isDuplicate) {
+        alert("Atenção: Este horário já está reservado para outro cliente. Por favor, selecione outro dia ou hora.");
+        return;
+    }
 
     try {
         await addDoc(collection(db, "appointments"), {
@@ -647,11 +667,15 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onerror = error => reject(error);
 });
 
-function renderAdminStock() {
+function renderAdminStock(searchTerm = '') {
     const container = document.getElementById('admin-stock-list');
     if (!container) return;
     
-    container.innerHTML = products.map(p => `
+    const filtered = products.filter(p => 
+        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    container.innerHTML = filtered.map(p => `
         <div class="flex items-center justify-between p-3 border-b border-neutral-800 hover:bg-black/30 transition rounded">
             <div class="flex items-center gap-3 overflow-hidden">
                 <div class="w-8 h-8 flex-shrink-0 bg-neutral-800 rounded bg-cover bg-center" style="background-image: url('${p.image || ''}')"></div>
@@ -666,6 +690,68 @@ function renderAdminStock() {
             </div>
         </div>
     `).join('') || '<p class="text-center text-neutral-600 text-[10px] uppercase font-bold py-4">Estoque Vazio</p>';
+}
+
+async function printLowStockReport() {
+    if (!confirm("Deseja realmente gerar a lista de compras para reposição?")) return;
+
+    const lowStockItems = products.filter(p => parseInt(p.stock) <= 5);
+    if (lowStockItems.length === 0) {
+        alert("O estoque está em dia! Nenhum item com 5 unidades ou menos.");
+        return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+
+    // Cabeçalho do PDF
+    doc.setFillColor(0, 0, 0);
+    doc.rect(0, 0, 210, 45, 'F');
+
+    // Tenta carregar e adicionar a Logo
+    try {
+        const logoData = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = reject;
+            img.src = 'logo.png';
+        });
+        doc.addImage(logoData, 'PNG', 85, 5, 40, 25); // Centraliza a logo no topo
+    } catch (e) {
+        console.error("Não foi possível carregar a logo para o PDF.");
+    }
+
+    doc.setTextColor(225, 29, 72);
+    doc.setFontSize(16);
+    doc.text("LISTA DE COMPRAS - REPOSIÇÃO", 105, 38, { align: 'center' });
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(12);
+    doc.text(`Data do Relatório: ${new Date().toLocaleDateString('pt-BR')}`, 20, 55);
+    
+    let y = 65;
+    doc.setFontSize(10);
+    doc.text("PRODUTO", 20, y);
+    doc.text("QTD ATUAL", 140, y);
+    doc.text("VALOR UN.", 170, y);
+    doc.line(20, y + 2, 190, y + 2);
+    
+    y += 12;
+    lowStockItems.forEach(item => {
+        doc.text(item.name.toUpperCase(), 20, y);
+        doc.text(item.stock.toString(), 140, y);
+        doc.text(`R$ ${parseFloat(item.price).toFixed(2)}`, 170, y);
+        y += 8;
+    });
+
+    doc.save(`lista_compras_garage_motos.pdf`);
 }
 
 function renderAdminAppointments() {
