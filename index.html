@@ -83,11 +83,11 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div class="flex flex-col gap-2">
                             <label class="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1">Data</label>
-                            <input type="date" id="service-date-only" class="w-full bg-neutral-300 border border-neutral-400 p-4 rounded focus:border-red-600 outline-none transition text-black font-bold" required>
+                            <input type="text" id="service-date-only" placeholder="Selecione a data" onfocus="this.type='date'; try { this.showPicker(); } catch(e) {}" onclick="this.type='date'; try { this.showPicker(); } catch(e) {}" onblur="if(!this.value)this.type='text'" class="w-full bg-neutral-300 border border-neutral-400 p-4 rounded focus:border-red-600 outline-none transition text-black font-bold" required>
                         </div>
                         <div class="flex flex-col gap-2">
                             <label class="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1">Hora</label>
-                            <input type="time" id="service-time-only" class="w-full bg-neutral-300 border border-neutral-400 p-4 rounded focus:border-red-600 outline-none transition text-black font-bold" required>
+                            <input type="text" id="service-time-only" placeholder="Selecione a hora" onfocus="this.type='time'; try { this.showPicker(); } catch(e) {}" onclick="this.type='time'; try { this.showPicker(); } catch(e) {}" onblur="if(!this.value)this.type='text'" class="w-full bg-neutral-300 border border-neutral-400 p-4 rounded focus:border-red-600 outline-none transition text-black font-bold" required>
                         </div>
                     </div>
                     <button type="submit" class="w-full bg-red-600 py-4 font-black uppercase tracking-widest hover:bg-red-700 transition">Solicitar Vaga</button>

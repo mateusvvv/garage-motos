@@ -51,7 +51,7 @@ body {
 }
 
 /* Ajuste de visibilidade para campos de data e hora */
-input[type="date"], input[type="time"] {
+input#service-date-only, input#service-time-only, input[type="date"], input[type="time"] {
     color-scheme: light; /* Força ícones pretos para fundo claro */
     min-height: 58px;
 }
