@@ -53,6 +53,9 @@ body {
 /* Ajuste de visibilidade para o campo de data e hora no mobile */
 input[type="datetime-local"] {
     color-scheme: dark;
+    background-color: #262626 !important; /* Cinza neutral-800 */
+    color: #ffffff !important;           /* Texto branco */
+    min-height: 56px;                    /* Garante boa área de toque no mobile */
 }
 
 /* Força o ícone do calendário a ficar visível (branco) em navegadores Webkit */
