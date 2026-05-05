@@ -41,6 +41,7 @@
 }
 
 body {
+    color-scheme: dark; /* Garante que controles nativos sigam o tema escuro */
     background-color: #050505;
     background-image: 
         radial-gradient(at 0% 0%, rgba(225, 29, 72, 0.12) 0px, transparent 50%),
@@ -48,3 +49,104 @@ body {
         radial-gradient(at 50% 50%, #1a1a1a 0px, transparent 100%);
     background-attachment: fixed;
 }
+
+/* Ajuste de visibilidade para o campo de data e hora no mobile */
+input[type="datetime-local"] {
+    color-scheme: dark;
+}
+
+/* Força o ícone do calendário a ficar visível (branco) em navegadores Webkit */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+/* Efeito para a Logo */
+.logo-premium {
+    /* Adiciona um brilho sutil vermelho atrás da logo para profundidade */
+    filter: drop-shadow(0 0 8px rgba(225, 29, 72, 0.3));
+    transition: all 0.3s ease;
+}
+
+.logo-premium:hover {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 12px rgba(225, 29, 72, 0.6));
+}
+
+/* Ajuste de Cores e Visibilidade do Título Hero */
+.text-stroke-white {
+    color: #ffffff !important;
+    text-shadow: 0 10px 30px rgba(0, 0, 0, 0.9);
+    -webkit-text-stroke: 0;
+}
+
+.text-stroke-red {
+    color: #e11d48 !important;
+    text-shadow: 0 0 20px rgba(225, 29, 72, 0.4), 0 10px 30px rgba(0, 0, 0, 0.9);
+    -webkit-text-stroke: 0;
+}
+
+/* Configurações da Seção Hero */
+.hero-section {
+    background-image: url('oficina.jpg');
+}
+
+.hero-overlay {
+    background-color: rgba(0, 0, 0, 0.3); /* Escurecimento de 30% para nitidez da foto */
+}
+
+/* Estilo Refinado para o Botão Principal */
+.btn-agendar {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-agendar:hover {
+    box-shadow: 0 0 30px rgba(225, 29, 72, 0.6);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* Estilos para Abas do Dashboard (Convertido de Tailwind Apply para CSS) */
+.admin-tab-btn {
+    background-color: #171717;
+    border: 1px solid #262626;
+    padding: 1rem 0;
+    font-size: 10px;
+    font-weight: 900;
+    text-transform: uppercase;
+    font-style: italic;
+    letter-spacing: 0.1em;
+    transition: all 0.3s;
+    color: #737373;
+    border-radius: 0.75rem;
+}
+
+@media (min-width: 768px) { .admin-tab-btn { font-size: 0.75rem; } }
+
+.admin-tab-btn.active {
+    background-color: #e11d48;
+    color: white;
+    border-color: #e11d48;
+    box-shadow: 0 10px 15px -3px rgba(225, 29, 72, 0.2);
+}
+
+/* Estilização para Finais de Semana (Fechado) */
+.fc-day-sat, .fc-day-sun {
+    background-color: rgba(0, 0, 0, 0.5) !important;
+    position: relative;
+}
+
+.fc-day-sat::after, .fc-day-sun::after {
+    content: 'FECHADO';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 0.6rem;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.05);
+    letter-spacing: 0.1em;
+    pointer-events: none;
+}
+
+@keyframes fade-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fade-in 0.3s ease-out forwards; }

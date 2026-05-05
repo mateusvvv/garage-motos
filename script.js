@@ -1,7 +1,11 @@
+import { auth, db } from './firebase-config.js';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
 // Gerenciamento de Estado Global (LocalStorage)
 let products = JSON.parse(localStorage.getItem('gm_products')) || [];
 let serviceOrders = JSON.parse(localStorage.getItem('gm_orders')) || [];
-let appointments = JSON.parse(localStorage.getItem('gm_appointments')) || [];
+let appointmentRequests = []; // Sincronizado em tempo real com o Firebase
 
 document.addEventListener('DOMContentLoaded', () => {
     initCalendar();
@@ -14,14 +18,52 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('product-form').addEventListener('submit', addProduct);
     document.getElementById('os-form').addEventListener('submit', generateOS);
     document.getElementById('appointment-form').addEventListener('submit', scheduleService);
+    document.getElementById('block-date-form').addEventListener('submit', blockDate);
     document.getElementById('revenue-filter').addEventListener('change', renderChart);
+    document.getElementById('login-form').addEventListener('submit', loginAdmin);
     
     addPartRow(); // Inicia com uma linha de peça vazia
 
     document.getElementById('os-cancel-edit').addEventListener('click', () => {
         resetOSForm();
     });
+
+    document.getElementById('prod-cancel-edit').addEventListener('click', () => {
+        resetProductForm();
+    });
+
+    // Observador de estado de autenticação
+    onAuthStateChanged(auth, (user) => {
+        const dashboard = document.getElementById('admin-dashboard-ui');
+        const loginUI = document.getElementById('admin-login-ui');
+        
+        if (user) {
+            dashboard.classList.remove('hidden');
+            loginUI.classList.add('hidden');
+            renderAdminStock();
+            renderAdminAppointments();
+            showAdminView('gestao'); // Inicia na aba de gestão
+        } else {
+            dashboard.classList.add('hidden');
+            loginUI.classList.remove('hidden');
+        }
+    });
 });
+
+async function loginAdmin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const pass = document.getElementById('login-password').value;
+    try {
+        await signInWithEmailAndPassword(auth, email, pass);
+    } catch (error) {
+        alert('Acesso negado: Credenciais inválidas.');
+    }
+}
+
+async function logoutAdmin() {
+    await signOut(auth);
+}
 
 function toggleMenu() {
     const menu = document.getElementById('main-menu');
@@ -34,6 +76,47 @@ function toggleAdmin() {
     renderAdminStock(); // Atualiza estoque na visão admin
 }
 
+// Torna as funções globais para serem acessadas pelo HTML onclick
+window.toggleMenu = toggleMenu;
+window.toggleAdmin = toggleAdmin;
+window.toggleShop = toggleShop;
+window.toggleAdminNav = toggleAdminNav;
+window.showAdminView = showAdminView;
+window.logoutAdmin = logoutAdmin;
+window.editProduct = editProduct;
+window.deleteProduct = deleteProduct;
+window.deleteAppointment = deleteAppointment;
+window.addPartRow = addPartRow;
+window.editOS = editOS;
+window.deleteOS = deleteOS;
+window.downloadOSPDF = downloadOSPDF;
+
+function toggleAdminNav() {
+    const nav = document.getElementById('admin-nav-menu');
+    nav.classList.toggle('hidden');
+}
+
+function showAdminView(viewName) {
+    // Esconde todas as views
+    document.querySelectorAll('.admin-view').forEach(v => v.classList.add('hidden'));
+    // Remove classe ativa de todos os botões
+    document.querySelectorAll('.admin-tab-btn').forEach(b => b.classList.remove('active'));
+    
+    // Mostra a view selecionada
+    const targetView = document.getElementById(`view-${viewName}`);
+    const targetBtn = document.getElementById(`btn-tab-${viewName}`);
+    
+    if (targetView) targetView.classList.remove('hidden');
+    if (targetBtn) targetBtn.classList.add('active');
+    
+    // Fecha o menu de navegação após selecionar
+    document.getElementById('admin-nav-menu').classList.add('hidden');
+    
+    // Atualiza componentes específicos se necessário
+    if (viewName === 'financeiro') renderChart();
+    if (viewName === 'agenda' && calendar) calendar.render();
+}
+
 function toggleShop() {
     const panel = document.getElementById('shop-overlay');
     panel.classList.toggle('hidden');
@@ -42,6 +125,7 @@ function toggleShop() {
 // --- SISTEMA DE PRODUTOS ---
 async function addProduct(e) {
     e.preventDefault();
+    const id = document.getElementById('prod-id').value;
     const name = document.getElementById('prod-name').value;
     const price = document.getElementById('prod-price').value;
     const stock = document.getElementById('prod-stock').value;
@@ -52,15 +136,51 @@ async function addProduct(e) {
         imgBase64 = await toBase64(imgFile);
     }
 
-    const product = { id: Date.now(), name, price, stock, image: imgBase64 };
-    products.push(product);
+    if (id) {
+        const index = products.findIndex(p => p.id === parseInt(id));
+        if (index !== -1) {
+            const oldImg = products[index].image;
+            products[index] = { 
+                id: parseInt(id), 
+                name, 
+                price, 
+                stock, 
+                image: imgBase64 || oldImg 
+            };
+        }
+    } else {
+        const product = { id: Date.now(), name, price, stock, image: imgBase64 };
+        products.push(product);
+    }
+    
     saveAndRefresh();
-    e.target.reset();
+    resetProductForm();
+}
+
+function editProduct(id) {
+    const p = products.find(prod => prod.id === id);
+    if (!p) return;
+    
+    document.getElementById('prod-id').value = p.id;
+    document.getElementById('prod-name').value = p.name;
+    document.getElementById('prod-price').value = p.price;
+    document.getElementById('prod-stock').value = p.stock;
+    
+    document.querySelector('#product-form button[type="submit"]').textContent = 'Atualizar Item';
+    document.getElementById('prod-cancel-edit').classList.remove('hidden');
 }
 
 function deleteProduct(id) {
+    if (!confirm('Deseja realmente excluir este produto do estoque?')) return;
     products = products.filter(p => p.id !== id);
     saveAndRefresh();
+}
+
+function resetProductForm() {
+    document.getElementById('product-form').reset();
+    document.getElementById('prod-id').value = '';
+    document.querySelector('#product-form button[type="submit"]').textContent = 'Adicionar Item';
+    document.getElementById('prod-cancel-edit').classList.add('hidden');
 }
 
 // --- SISTEMA DE O.S ---
@@ -107,22 +227,29 @@ function generateOS(e) {
         total, 
         labor,
         parts,
-        partsTotal
+        partsTotal,
+        editCount: 0
     };
 
     if (id) {
         const index = serviceOrders.findIndex(o => o.id === parseInt(id));
+        const previousEditCount = serviceOrders[index].editCount || 0;
+        osData.editCount = previousEditCount + 1;
         serviceOrders[index] = osData;
     } else {
         serviceOrders.push(osData);
     }
-    
     downloadOSPDF(osData);
     saveAndRefresh();
     resetOSForm();
 }
 
-function downloadOSPDF(os) {
+function downloadOSPDF(osOrId) {
+    // Busca a O.S se for passado apenas o ID (clique no histórico) 
+    // ou usa o objeto direto (geração de nova O.S)
+    let os = (typeof osOrId === 'number') ? serviceOrders.find(o => o.id === osOrId) : osOrId;
+    if (!os) return;
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
@@ -163,23 +290,74 @@ function initCalendar() {
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'pt-br',
-        events: appointments
+        businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5], // Segunda a Sexta
+        },
+        events: []
     });
     calendar.render();
+
+    // Sincronização em tempo real com o Firebase
+    onSnapshot(collection(db, "appointments"), (snapshot) => {
+        appointmentRequests = [];
+        const calendarEvents = [];
+        snapshot.forEach((doc) => {
+            const data = { id: doc.id, ...doc.data() };
+            appointmentRequests.push(data);
+            calendarEvents.push(data);
+        });
+        calendar.removeAllEvents();
+        calendarEvents.forEach(ev => calendar.addEvent(ev));
+        if (auth.currentUser) renderAdminAppointments();
+    });
 }
 
-function scheduleService(e) {
+async function scheduleService(e) {
     e.preventDefault();
     const name = document.getElementById('client-name').value;
     const bike = document.getElementById('bike-info').value;
     const date = document.getElementById('service-date').value;
 
-    const event = { title: `REVISÃO: ${bike} (${name})`, start: date, color: '#e11d48' };
-    appointments.push(event);
-    localStorage.setItem('gm_appointments', JSON.stringify(appointments));
-    calendar.addEvent(event);
-    alert('Solicitação recebida! Verifique o calendário.');
-    e.target.reset();
+    try {
+        await addDoc(collection(db, "appointments"), {
+            title: `🛠️ ${bike} - ${name}`,
+            start: date,
+            color: '#e11d48',
+            clientName: name,
+            bikeInfo: bike,
+            createdAt: new Date().toISOString(),
+            type: 'request'
+        });
+        alert('Solicitação enviada com sucesso! O mecânico verificará sua vaga.');
+        e.target.reset();
+    } catch (err) {
+        alert('Erro ao agendar. Tente novamente.');
+    }
+}
+
+async function blockDate(e) {
+    e.preventDefault();
+    const date = document.getElementById('block-date').value;
+    const reason = document.getElementById('block-reason').value || 'INDISPONÍVEL';
+
+    try {
+        await addDoc(collection(db, "appointments"), {
+            title: `🚫 ${reason}`,
+            start: date,
+            color: '#262626',
+            display: 'background',
+            type: 'block'
+        });
+        e.target.reset();
+    } catch (err) {
+        alert('Erro ao bloquear data.');
+    }
+}
+
+async function deleteAppointment(id) {
+    if (confirm('Remover este agendamento/bloqueio?')) {
+        await deleteDoc(doc(db, "appointments", id));
+    }
 }
 
 // --- SISTEMA DE GRÁFICOS ---
@@ -279,21 +457,27 @@ function renderHistory() {
     const body = document.getElementById('os-history-body');
     body.innerHTML = serviceOrders.map((os, index) => `
         <tr class="text-sm">
-            <td class="py-4 font-black text-red-600 italic">#${index + 1} O.S</td>
+            <td class="py-4 font-black text-red-600 italic leading-tight">
+                #${index + 1} O.S
+                ${os.editCount > 0 ? `<br><span class="text-[9px] text-neutral-500 not-italic font-bold uppercase tracking-tighter">Editada ${os.editCount}x</span>` : ''}
+            </td>
             <td class="py-4 text-neutral-400">${os.date}</td>
             <td class="py-4 font-bold uppercase">${os.client}</td>
             <td class="py-4 italic uppercase">${os.bike}</td>
             <td class="py-4 text-red-500 font-black">R$ ${os.total.toFixed(2)}</td>
             <td class="py-4 flex gap-3">
-                <button onclick='editOS(${JSON.stringify(os)})' class="text-blue-500 hover:text-blue-400 transition">Editar</button>
-                <button onclick="downloadOSPDF(${JSON.stringify(os)})" class="text-green-500 hover:text-green-400 transition">Baixar</button>
+                <button onclick="editOS(${os.id})" class="text-blue-500 hover:text-blue-400 transition">Editar</button>
+                <button onclick="downloadOSPDF(${os.id})" class="text-green-500 hover:text-green-400 transition">Baixar</button>
                 <button onclick="deleteOS(${os.id})" class="text-neutral-600 hover:text-red-600 transition">Remover</button>
             </td>
         </tr>
     `).join('');
 }
 
-function editOS(os) {
+function editOS(id) {
+    const os = serviceOrders.find(o => o.id === id);
+    if (!os) return;
+
     document.getElementById('os-id').value = os.id;
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
@@ -306,7 +490,12 @@ function editOS(os) {
     
     document.getElementById('os-submit-btn').textContent = 'Atualizar O.S & Baixar';
     document.getElementById('os-cancel-edit').classList.remove('hidden');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Troca para a aba de Gestão onde o formulário reside
+    showAdminView('gestao');
+    
+    // Rola suavemente até o formulário
+    document.getElementById('os-form').scrollIntoView({ behavior: 'smooth' });
 }
 
 function resetOSForm() {
@@ -351,5 +540,40 @@ const toBase64 = file => new Promise((resolve, reject) => {
 });
 
 function renderAdminStock() {
-    // Opcional: Renderizar uma lista simples de edição de estoque aqui
+    const container = document.getElementById('admin-stock-list');
+    if (!container) return;
+    
+    container.innerHTML = products.map(p => `
+        <div class="flex items-center justify-between p-3 border-b border-neutral-800 hover:bg-black/30 transition rounded">
+            <div class="flex items-center gap-3 overflow-hidden">
+                <div class="w-8 h-8 flex-shrink-0 bg-neutral-800 rounded bg-cover bg-center" style="background-image: url('${p.image || ''}')"></div>
+                <div class="truncate">
+                    <p class="font-bold text-[10px] md:text-xs uppercase truncate">${p.name}</p>
+                    <p class="text-[9px] text-neutral-500 uppercase tracking-tighter">Qtd: ${p.stock} | R$ ${parseFloat(p.price).toFixed(2)}</p>
+                </div>
+            </div>
+            <div class="flex gap-2 ml-2">
+                <button onclick="editProduct(${p.id})" class="text-blue-500 hover:text-blue-400 text-[10px] font-black uppercase italic">Editar</button>
+                <button onclick="deleteProduct(${p.id})" class="text-neutral-600 hover:text-red-600 text-[10px] font-black uppercase italic">Excluir</button>
+            </div>
+        </div>
+    `).join('') || '<p class="text-center text-neutral-600 text-[10px] uppercase font-bold py-4">Estoque Vazio</p>';
+}
+
+function renderAdminAppointments() {
+    const container = document.getElementById('admin-appointments-list');
+    if (!container) return;
+    
+    const requests = appointmentRequests.filter(e => e.type === 'request');
+
+    container.innerHTML = requests.map(e => `
+        <div class="bg-black p-4 rounded border border-neutral-800 flex justify-between items-center">
+            <div>
+                <p class="text-red-500 font-black text-xs uppercase italic">${new Date(e.start).toLocaleString('pt-BR')}</p>
+                <p class="font-bold text-sm uppercase">${e.clientName || 'Cliente'}</p>
+                <p class="text-xs text-neutral-500 uppercase tracking-widest">${e.bikeInfo || 'Moto'}</p>
+            </div>
+            <button onclick="deleteAppointment('${e.id}')" class="text-neutral-600 hover:text-red-600 text-[10px] font-bold uppercase italic">Concluir/Remover</button>
+        </div>
+    `).join('') || '<p class="text-center text-neutral-500 text-xs py-4">Nenhuma solicitação pendente.</p>';
 }
