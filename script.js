@@ -336,6 +336,9 @@ function openAppointmentPicker() {
             locale: 'pt-br',
             height: 'auto',
             headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+            validRange: {
+                start: new Date().toLocaleDateString('sv-SE') // Define hoje como data mínima (Formato YYYY-MM-DD)
+            },
             businessHours: { daysOfWeek: [1, 2, 3, 4, 5] },
             events: appointmentRequests,
             dateClick: function(info) {
@@ -383,6 +386,7 @@ function renderClockGrid() {
                 document.getElementById('picker-label').textContent = 'Selecionado:';
                 document.getElementById('picker-selected').textContent = `${parts[2]}/${parts[1]} às ${time}`;
                 closeAppointmentPicker();
+                document.getElementById('agendamento').scrollIntoView({ behavior: 'smooth' });
             };
             grid.appendChild(btn);
         });

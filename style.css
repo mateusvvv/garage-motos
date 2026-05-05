@@ -134,7 +134,8 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 }
 
 /* Picker Calendar Customization */
-.picker-calendar-custom .fc-view-harness { height: 320px !important; }
+/* Restaurado para o padrão anterior */
+.picker-calendar-custom .fc-view-harness { height: auto !important; min-height: 400px; }
 .picker-calendar-custom .fc-daygrid-day-number { font-size: 0.8rem !important; padding: 4px !important; }
 .picker-calendar-custom .fc-col-header-cell-cushion { font-size: 0.7rem; text-transform: uppercase; color: #737373; }
 .picker-calendar-custom .fc-toolbar-title { font-size: 1rem !important; color: #e11d48; }
@@ -160,6 +161,16 @@ input[type="time"]::-webkit-calendar-picker-indicator {
 
 .scrollbar-custom::-webkit-scrollbar { width: 4px; }
 .scrollbar-custom::-webkit-scrollbar-thumb { background: #262626; border-radius: 10px; }
+
+/* Dias passados e desabilitados (Cinzas) */
+.fc-day-past, .fc-day-disabled {
+    background-color: rgba(38, 38, 38, 0.4) !important; /* Tom de cinza escuro */
+}
+
+.fc-day-past .fc-daygrid-day-number, 
+.fc-day-disabled .fc-daygrid-day-number {
+    color: #525252 !important; /* Restaura a visibilidade com cor cinza para parecer desativado */
+}
 
 /* Estilização para Finais de Semana (Fechado) */
 .fc-day-sat, .fc-day-sun {
