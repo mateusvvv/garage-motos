@@ -253,7 +253,7 @@
     <div id="appointment-picker-overlay" class="fixed inset-0 z-[110] bg-black/98 hidden flex items-center justify-center p-4">
         <div class="relative w-full max-w-md bg-neutral-900 rounded-3xl border border-neutral-800 p-6 md:p-8 shadow-2xl overflow-hidden animate-fade-in">
             <!-- Botão Fechar Universal -->
-            <button onclick="closeAppointmentPicker()" class="absolute top-4 right-6 text-neutral-500 hover:text-white text-xl font-bold z-10">✕</button>
+            <button onclick="closeAppointmentPicker()" class="absolute top-4 right-6 text-white hover:text-red-500 text-xl font-bold z-10">✕</button>
 
             <div id="picker-step-1">
                 <h4 class="text-2xl font-black uppercase italic mb-6 text-center text-red-600 tracking-tighter">Selecione o Dia</h4>
@@ -261,9 +261,9 @@
             </div>
             <div id="picker-step-2" class="hidden">
                 <h4 class="text-2xl font-black uppercase italic mb-1 text-center text-red-600 tracking-tighter">Escolha a Hora</h4>
-                <p id="picked-day-display" class="text-center text-[10px] text-neutral-500 uppercase font-black mb-8 tracking-[0.2em]"></p>
+                <p id="picked-day-display" class="text-center text-[10px] text-white uppercase font-black mb-8 tracking-[0.2em]"></p>
                 <div id="clock-grid" class="grid grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-2 scrollbar-custom"></div>
-                <button onclick="backToCalendar()" class="w-full mt-8 text-neutral-600 uppercase text-[10px] font-black tracking-[0.2em] hover:text-white transition italic">← Voltar para o Calendário</button>
+                <button onclick="backToCalendar()" class="w-full mt-8 text-white uppercase text-[10px] font-black tracking-[0.2em] hover:text-red-500 transition italic">← Voltar para o Calendário</button>
             </div>
         </div>
     </div>

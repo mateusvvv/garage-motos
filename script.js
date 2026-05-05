@@ -511,8 +511,14 @@ function renderChart() {
 
 // --- HELPERS ---
 function saveAndRefresh() {
-    localStorage.setItem('gm_products', JSON.stringify(products));
-    localStorage.setItem('gm_orders', JSON.stringify(serviceOrders));
+    try {
+        localStorage.setItem('gm_products', JSON.stringify(products));
+        localStorage.setItem('gm_orders', JSON.stringify(serviceOrders));
+    } catch (e) {
+        console.error("Erro ao salvar no LocalStorage: Provavelmente o limite de 5MB foi atingido devido às fotos.");
+        alert("Atenção: O limite de armazenamento de fotos foi atingido. Tente usar fotos menores ou remova itens antigos.");
+    }
+    
     renderShop();
     renderHistory();
     renderAdminStock();
