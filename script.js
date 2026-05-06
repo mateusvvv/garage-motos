@@ -1,9 +1,9 @@
 import { auth, db } from './firebase-config.js';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // Gerenciamento de Estado Global (LocalStorage)
-let products = JSON.parse(localStorage.getItem('gm_products')) || [];
+let products = []; // Agora sincronizado via Firebase
 let serviceOrders = JSON.parse(localStorage.getItem('gm_orders')) || [];
 let appointmentRequests = []; // Sincronizado em tempo real com o Firebase
 let pickerCalendar;
@@ -11,7 +11,7 @@ let tempSelectedDate = '';
 
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('calendar')) initCalendar();
-    renderShop();
+    initProductsSync(); // Nova função para sincronizar produtos
     renderHistory();
     updateRevenueFilterOptions();
     renderChart();
@@ -151,28 +151,52 @@ async function addProduct(e) {
 
     let imgBase64 = '';
     if (imgFile) {
+        // Validação de tamanho da imagem antes de converter para Base64
+        // Firestore tem limite de 1MB por documento. Base64 aumenta o tamanho em ~33%.
+        if (imgFile.size > 750 * 1024) { // Aproximadamente 750KB de arquivo bruto
+            alert("A imagem é muito grande! Por favor, selecione uma imagem menor (máx. 750KB) para evitar problemas de armazenamento no Firebase.");
+            return; // Impede o processamento e o salvamento
+        }
         imgBase64 = await toBase64(imgFile);
     }
 
-    if (id) {
-        const index = products.findIndex(p => p.id === parseInt(id));
-        if (index !== -1) {
-            const oldImg = products[index].image;
-            products[index] = { 
-                id: parseInt(id), 
-                name, 
-                price, 
-                stock, 
-                image: imgBase64 || oldImg 
-            };
+    const productData = {
+        name,
+        price: parseFloat(price),
+        stock: parseInt(stock),
+        image: imgBase64 || ''
+    };
+
+    try {
+        if (id) {
+            const product = products.find(p => p.id === id);
+            if (!imgBase64 && product) productData.image = product.image;
+            await setDoc(doc(db, "products", id), productData);
+        } else {
+            await addDoc(collection(db, "products"), productData);
         }
-    } else {
-        const product = { id: Date.now(), name, price, stock, image: imgBase64 };
-        products.push(product);
+        alert("Produto salvo com sucesso!");
+        resetProductForm();
+    } catch (error) {
+        console.error("Erro ao salvar produto no Firestore:", error);
+        if (error.code === 'resource-exhausted') {
+            alert("Erro: O documento do produto (provavelmente a imagem) é muito grande. Por favor, use uma imagem menor.");
+        } else {
+            alert("Erro ao salvar o produto. Verifique sua conexão.");
+        }
     }
-    
-    saveAndRefresh();
-    resetProductForm();
+}
+
+function initProductsSync() {
+    const productsCol = collection(db, "products");
+    onSnapshot(productsCol, (snapshot) => {
+        products = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        renderShop();
+        if (auth.currentUser) renderAdminStock();
+    });
 }
 
 function editProduct(id) {
@@ -188,10 +212,10 @@ function editProduct(id) {
     document.getElementById('prod-cancel-edit').classList.remove('hidden');
 }
 
-function deleteProduct(id) {
-    if (!confirm('Deseja realmente excluir este produto do estoque?')) return;
-    products = products.filter(p => p.id !== id);
-    saveAndRefresh();
+async function deleteProduct(id) {
+    if (confirm('Deseja realmente excluir este produto do estoque?')) {
+        await deleteDoc(doc(db, "products", id));
+    }
 }
 
 function resetProductForm() {
@@ -309,10 +333,33 @@ function initCalendar() {
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'pt-br',
+        headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+        validRange: {
+            start: new Date().toLocaleDateString('sv-SE') // Impede visualização de datas passadas
+        },
         businessHours: {
             daysOfWeek: [1, 2, 3, 4, 5], // Segunda a Sexta
         },
-        events: []
+        events: [],
+        dateClick: function(info) {
+            const day = new Date(info.date).getUTCDay();
+            if (day === 0 || day === 6) return;
+            
+            const isBlocked = appointmentRequests.some(e => e.type === 'block' && e.start === info.dateStr);
+            if (isBlocked) {
+                alert("Desculpe, esta data está indisponível.");
+                return;
+            }
+
+            // Abre o modal e já pula para a escolha de horário para a data clicada
+            openAppointmentPicker();
+            tempSelectedDate = info.dateStr;
+            const parts = info.dateStr.split('-');
+            document.getElementById('picked-day-display').textContent = `Agendando para ${parts[2]}/${parts[1]}`;
+            document.getElementById('picker-step-1').classList.add('hidden');
+            document.getElementById('picker-step-2').classList.remove('hidden');
+            renderClockGrid();
+        }
     });
     calendar.render();
 
@@ -536,14 +583,12 @@ function renderChart() {
 // --- HELPERS ---
 function saveAndRefresh() {
     try {
-        localStorage.setItem('gm_products', JSON.stringify(products));
         localStorage.setItem('gm_orders', JSON.stringify(serviceOrders));
     } catch (e) {
         console.error("Erro ao salvar no LocalStorage: Provavelmente o limite de 5MB foi atingido devido às fotos.");
         alert("Atenção: O limite de armazenamento de fotos foi atingido. Tente usar fotos menores ou remova itens antigos.");
     }
     
-    renderShop();
     renderHistory();
     renderAdminStock();
     updateRevenueFilterOptions();
@@ -669,27 +714,34 @@ const toBase64 = file => new Promise((resolve, reject) => {
 
 function renderAdminStock(searchTerm = '') {
     const container = document.getElementById('admin-stock-list');
+    const totalCountElement = document.getElementById('stock-total-count');
     if (!container) return;
     
     const filtered = products.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    if (totalCountElement) {
+        totalCountElement.textContent = `Total de Itens: ${filtered.length}`;
+    }
+
     container.innerHTML = filtered.map(p => `
-        <div class="flex items-center justify-between p-3 border-b border-neutral-800 hover:bg-black/30 transition rounded">
-            <div class="flex items-center gap-3 overflow-hidden">
-                <div class="w-8 h-8 flex-shrink-0 bg-neutral-800 rounded bg-cover bg-center" style="background-image: url('${p.image || ''}')"></div>
+        <div class="flex items-center justify-between p-4 border-b border-neutral-800 hover:bg-black/30 transition rounded">
+            <div class="flex items-center gap-4 overflow-hidden">
+                <div class="w-12 h-12 flex-shrink-0 bg-neutral-800 rounded flex items-center justify-center overflow-hidden">
+                    ${p.image ? `<img src="${p.image}" class="max-h-full max-w-full object-contain">` : ''}
+                </div>
                 <div class="truncate">
-                    <p class="font-bold text-[10px] md:text-xs uppercase truncate">${p.name}</p>
-                    <p class="text-[9px] text-neutral-500 uppercase tracking-tighter">Qtd: ${p.stock} | R$ ${parseFloat(p.price).toFixed(2)}</p>
+                    <p class="font-bold text-xs md:text-sm uppercase truncate">${p.name}</p>
+                    <p class="text-[11px] md:text-xs text-neutral-500 uppercase tracking-tighter">Qtd: ${p.stock} | R$ ${parseFloat(p.price).toFixed(2)}</p>
                 </div>
             </div>
-            <div class="flex gap-2 ml-2">
-                <button onclick="editProduct(${p.id})" class="text-blue-500 hover:text-blue-400 text-[10px] font-black uppercase italic">Editar</button>
-                <button onclick="deleteProduct(${p.id})" class="text-neutral-600 hover:text-red-600 text-[10px] font-black uppercase italic">Excluir</button>
+            <div class="flex gap-3 ml-2">
+                <button onclick="editProduct('${p.id}')" class="text-blue-500 hover:text-blue-400 text-xs font-black uppercase italic">Editar</button>
+                <button onclick="deleteProduct('${p.id}')" class="text-neutral-600 hover:text-red-600 text-xs font-black uppercase italic">Excluir</button>
             </div>
         </div>
-    `).join('') || '<p class="text-center text-neutral-600 text-[10px] uppercase font-bold py-4">Estoque Vazio</p>';
+    `).join('') || '<p class="text-center text-neutral-600 text-xs uppercase font-bold py-4">Estoque Vazio</p>';
 }
 
 async function printLowStockReport() {
