@@ -94,6 +94,7 @@ window.logoutAdmin = logoutAdmin;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.deleteAppointment = deleteAppointment;
+window.clearBlockedDates = clearBlockedDates;
 window.printLowStockReport = printLowStockReport;
 window.addPartRow = addPartRow;
 window.editOS = editOS;
@@ -127,9 +128,6 @@ function showAdminView(viewName) {
 
     // Atualiza o título no topo do painel
     document.getElementById('admin-view-title').textContent = viewTitles[viewName] || 'ADMIN';
-    
-    // Fecha o menu de navegação após selecionar
-    document.getElementById('admin-nav-menu').classList.add('hidden');
     
     // Atualiza componentes específicos se necessário
     if (viewName === 'financeiro') renderChart();
@@ -286,7 +284,7 @@ function generateOS(e) {
     resetOSForm();
 }
 
-function downloadOSPDF(osOrId) {
+async function downloadOSPDF(osOrId) {
     // Busca a O.S se for passado apenas o ID (clique no histórico) 
     // ou usa o objeto direto (geração de nova O.S)
     let os = (typeof osOrId === 'number') ? serviceOrders.find(o => o.id === osOrId) : osOrId;
@@ -294,33 +292,110 @@ function downloadOSPDF(osOrId) {
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    const logoData = await loadImageForPDF('logo-branca.png');
+    const parts = os.parts || [];
+    const money = value => `R$ ${Number(value || 0).toFixed(2)}`;
     
-    // PDF Styling
-    doc.setFillColor(0, 0, 0);
-    doc.rect(0, 0, 210, 40, 'F');
-    doc.setTextColor(225, 29, 72);
-    doc.setFontSize(22);
-    doc.text("GARAGE MOTOS", 105, 25, { align: 'center' });
-    
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(12);
-    doc.text(`ORDEM DE SERVIÇO: #${os.id}`, 20, 50);
-    doc.text(`DATA: ${os.date}`, 20, 60);
-    doc.text(`CLIENTE: ${os.client.toUpperCase()}`, 20, 75);
-    doc.text(`MOTO: ${os.bike.toUpperCase()}`, 20, 85);
-    
-    doc.line(20, 95, 190, 95);
-    doc.text(`VALOR MÃO DE OBRA: R$ ${os.labor.toFixed(2)}`, 20, 110);
-    
-    let currentY = 120;
-    os.parts.forEach(part => {
-        doc.setFontSize(10);
-        doc.text(`- ${part.name}: R$ ${part.price.toFixed(2)}`, 25, currentY);
-        currentY += 7;
-    });
+    doc.setFillColor(250, 250, 250);
+    doc.rect(0, 0, 210, 297, 'F');
 
-    doc.setFontSize(16);
-    doc.text(`TOTAL: R$ ${os.total.toFixed(2)}`, 20, currentY + 10);
+    doc.setFillColor(0, 0, 0);
+    doc.rect(0, 0, 210, 44, 'F');
+    doc.setFillColor(225, 29, 72);
+    doc.rect(0, 44, 210, 2.5, 'F');
+
+    if (logoData) {
+        doc.addImage(logoData, 'PNG', 14, 7, 70, 31);
+    } else {
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bolditalic');
+        doc.text('GARAGE MOTOS', 16, 26);
+    }
+
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
+    doc.setFontSize(17);
+    doc.text('ORDEM DE SERVICO', 196, 19, { align: 'right' });
+    doc.setFontSize(10);
+    doc.setTextColor(225, 29, 72);
+    doc.text(`#${os.id}`, 196, 29, { align: 'right' });
+    doc.setTextColor(210, 210, 210);
+    doc.text(`Emitida em ${os.date}`, 196, 36, { align: 'right' });
+
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(14, 58, 182, 34, 2, 2, 'F');
+    doc.setDrawColor(230, 230, 230);
+    doc.roundedRect(14, 58, 182, 34, 2, 2, 'S');
+
+    doc.setTextColor(115, 115, 115);
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'bold');
+    doc.text('CLIENTE', 22, 70);
+    doc.text('MOTO / PLACA', 112, 70);
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(13);
+    doc.text(String(os.client || '').toUpperCase(), 22, 80, { maxWidth: 78 });
+    doc.text(String(os.bike || '').toUpperCase(), 112, 80, { maxWidth: 72 });
+
+    doc.setFillColor(0, 0, 0);
+    doc.roundedRect(14, 104, 182, 11, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.text('DESCRICAO', 20, 111);
+    doc.text('VALOR', 186, 111, { align: 'right' });
+
+    let y = 126;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setFont(undefined, 'normal');
+    doc.text('Mao de obra', 20, y);
+    doc.text(money(os.labor), 186, y, { align: 'right' });
+    doc.setDrawColor(235, 235, 235);
+    doc.line(20, y + 5, 190, y + 5);
+    y += 13;
+
+    if (parts.length > 0) {
+        parts.forEach(part => {
+            const name = String(part.name || 'Peca').toUpperCase();
+            const lines = doc.splitTextToSize(name, 130);
+            doc.text(lines, 20, y);
+            doc.text(money(part.price), 186, y, { align: 'right' });
+            y += Math.max(10, lines.length * 5 + 4);
+            doc.setDrawColor(235, 235, 235);
+            doc.line(20, y, 190, y);
+            y += 6;
+        });
+    } else {
+        doc.setTextColor(115, 115, 115);
+        doc.text('Nenhuma peca adicionada.', 20, y);
+        y += 11;
+    }
+
+    const totalsY = Math.max(y + 8, 218);
+    doc.setFillColor(245, 245, 245);
+    doc.roundedRect(118, totalsY, 78, 34, 2, 2, 'F');
+    doc.setTextColor(90, 90, 90);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text('PECAS', 126, totalsY + 10);
+    doc.text(money(os.partsTotal), 188, totalsY + 10, { align: 'right' });
+    doc.text('MAO DE OBRA', 126, totalsY + 19);
+    doc.text(money(os.labor), 188, totalsY + 19, { align: 'right' });
+    doc.setFillColor(225, 29, 72);
+    doc.roundedRect(118, totalsY + 24, 78, 14, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(12);
+    doc.text('TOTAL', 126, totalsY + 33);
+    doc.text(money(os.total), 188, totalsY + 33, { align: 'right' });
+
+    doc.setTextColor(115, 115, 115);
+    doc.setFontSize(8);
+    doc.text('Garage Motos - Acessorios, Pecas e Servicos', 14, 279);
+    doc.text('@garagemotosbj', 14, 285);
+    doc.setDrawColor(225, 29, 72);
+    doc.line(14, 272, 196, 272);
     
     doc.save(`OS_${os.client}_${os.id}.pdf`);
 }
@@ -333,7 +408,8 @@ function initCalendar() {
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'pt-br',
-        headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+        headerToolbar: { left: 'title', center: '', right: 'today prev,next' },
+        buttonText: { today: 'Hoje' },
         validRange: {
             start: new Date().toLocaleDateString('sv-SE') // Impede visualização de datas passadas
         },
@@ -394,7 +470,8 @@ function openAppointmentPicker() {
         pickerCalendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'pt-br',
-            headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+            headerToolbar: { left: 'title', center: '', right: 'today prev,next' },
+            buttonText: { today: 'Hoje' },
             validRange: {
                 start: new Date().toLocaleDateString('sv-SE') // Define hoje como data mínima (Formato YYYY-MM-DD)
             },
@@ -518,6 +595,25 @@ async function blockDate(e) {
 async function deleteAppointment(id) {
     if (confirm('Remover este agendamento/bloqueio?')) {
         await deleteDoc(doc(db, "appointments", id));
+    }
+}
+
+async function clearBlockedDates() {
+    const blockedDates = appointmentRequests.filter(e => e.type === 'block');
+
+    if (blockedDates.length === 0) {
+        alert('Não há datas bloqueadas para limpar.');
+        return;
+    }
+
+    if (!confirm(`Deseja remover todas as ${blockedDates.length} datas bloqueadas? Os agendamentos de clientes serão mantidos.`)) return;
+
+    try {
+        await Promise.all(blockedDates.map(e => deleteDoc(doc(db, "appointments", e.id))));
+        alert('Todas as datas bloqueadas foram removidas.');
+    } catch (err) {
+        console.error('Erro ao limpar datas bloqueadas:', err);
+        alert('Erro ao limpar as datas bloqueadas. Tente novamente.');
     }
 }
 
@@ -712,6 +808,25 @@ const toBase64 = file => new Promise((resolve, reject) => {
     reader.onerror = error => reject(error);
 });
 
+function loadImageForPDF(src) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || img.width;
+            canvas.height = img.naturalHeight || img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => {
+            console.error(`Não foi possível carregar a logo para o PDF: ${src}`);
+            resolve('');
+        };
+        img.src = src;
+    });
+}
+
 function renderAdminStock(searchTerm = '') {
     const container = document.getElementById('admin-stock-list');
     const totalCountElement = document.getElementById('stock-total-count');
@@ -755,53 +870,85 @@ async function printLowStockReport() {
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
+    const logoData = await loadImageForPDF('logo-branca.png');
+    const reportDate = new Date().toLocaleDateString('pt-BR');
 
-    // Cabeçalho do PDF
+    doc.setFillColor(250, 250, 250);
+    doc.rect(0, 0, 210, 297, 'F');
+
     doc.setFillColor(0, 0, 0);
-    doc.rect(0, 0, 210, 45, 'F');
+    doc.rect(0, 0, 210, 44, 'F');
+    doc.setFillColor(225, 29, 72);
+    doc.rect(0, 44, 210, 2.5, 'F');
 
-    // Tenta carregar e adicionar a Logo
-    try {
-        const logoData = await new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-                resolve(canvas.toDataURL('image/png'));
-            };
-            img.onerror = reject;
-            img.src = 'logo.png';
-        });
-        doc.addImage(logoData, 'PNG', 85, 5, 40, 25); // Centraliza a logo no topo
-    } catch (e) {
-        console.error("Não foi possível carregar a logo para o PDF.");
+    if (logoData) {
+        doc.addImage(logoData, 'PNG', 14, 7, 70, 31);
+    } else {
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(20);
+        doc.setFont(undefined, 'bolditalic');
+        doc.text('GARAGE MOTOS', 16, 26);
     }
 
-    doc.setTextColor(225, 29, 72);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont(undefined, 'bold');
     doc.setFontSize(16);
-    doc.text("LISTA DE COMPRAS - REPOSIÇÃO", 105, 38, { align: 'center' });
+    doc.text('LISTA DE COMPRAS', 196, 19, { align: 'right' });
+    doc.setTextColor(225, 29, 72);
+    doc.setFontSize(10);
+    doc.text('REPOSICAO DE ESTOQUE', 196, 29, { align: 'right' });
+    doc.setTextColor(210, 210, 210);
+    doc.text(`Emitida em ${reportDate}`, 196, 36, { align: 'right' });
 
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(14, 58, 182, 25, 2, 2, 'F');
+    doc.setDrawColor(230, 230, 230);
+    doc.roundedRect(14, 58, 182, 25, 2, 2, 'S');
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
-    doc.text(`Data do Relatório: ${new Date().toLocaleDateString('pt-BR')}`, 20, 55);
+    doc.text(`${lowStockItems.length} item(ns) precisam de reposicao`, 22, 72);
+    doc.setTextColor(115, 115, 115);
+    doc.setFontSize(9);
+    doc.text('Produtos com 5 unidades ou menos no estoque.', 22, 78);
+
+    doc.setFillColor(0, 0, 0);
+    doc.roundedRect(14, 96, 182, 11, 1.5, 1.5, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'bold');
+    doc.text('PRODUTO', 20, 103);
+    doc.text('QTD', 140, 103);
+    doc.text('VALOR UN.', 188, 103, { align: 'right' });
     
-    let y = 65;
-    doc.setFontSize(10);
-    doc.text("PRODUTO", 20, y);
-    doc.text("QTD ATUAL", 140, y);
-    doc.text("VALOR UN.", 170, y);
-    doc.line(20, y + 2, 190, y + 2);
-    
-    y += 12;
+    let y = 118;
     lowStockItems.forEach(item => {
-        doc.text(item.name.toUpperCase(), 20, y);
-        doc.text(item.stock.toString(), 140, y);
-        doc.text(`R$ ${parseFloat(item.price).toFixed(2)}`, 170, y);
-        y += 8;
+        if (y > 265) {
+            doc.addPage();
+            doc.setFillColor(250, 250, 250);
+            doc.rect(0, 0, 210, 297, 'F');
+            y = 24;
+        }
+
+        const nameLines = doc.splitTextToSize(String(item.name || '').toUpperCase(), 105);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'normal');
+        doc.setFontSize(10);
+        doc.text(nameLines, 20, y);
+        doc.setFont(undefined, 'bold');
+        doc.text(String(item.stock), 144, y, { align: 'center' });
+        doc.text(`R$ ${parseFloat(item.price).toFixed(2)}`, 188, y, { align: 'right' });
+        y += Math.max(10, nameLines.length * 5 + 4);
+        doc.setDrawColor(235, 235, 235);
+        doc.line(20, y, 190, y);
+        y += 6;
     });
+
+    doc.setTextColor(115, 115, 115);
+    doc.setFontSize(8);
+    doc.text('Garage Motos - Acessorios, Pecas e Servicos', 14, 279);
+    doc.text('@garagemotosbj', 14, 285);
+    doc.setDrawColor(225, 29, 72);
+    doc.line(14, 272, 196, 272);
 
     doc.save(`lista_compras_garage_motos.pdf`);
 }
