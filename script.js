@@ -767,7 +767,7 @@ function editOS(id) {
     document.getElementById('os-form').scrollIntoView({ behavior: 'smooth' });
 }
 
-function resetOSForm() {
+
     document.getElementById('os-form').reset();
     document.getElementById('os-id').value = '';
     document.getElementById('os-parts-container').innerHTML = '';
