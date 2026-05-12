@@ -131,19 +131,20 @@
         <div id="admin-dashboard-ui" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-12 border-b border-neutral-800 pb-6 gap-4">
                 <h2 class="text-lg sm:text-2xl md:text-3xl font-black italic text-red-600 uppercase leading-tight">Dashboard <span id="admin-view-title" class="text-white">GESTÃO</span></h2>
-                <div class="flex items-center">
-                    <!-- Apenas o botão Menu agora no topo -->
+                <div class="relative flex items-center">
                     <button onclick="toggleAdminNav()" class="bg-red-600 px-6 py-2 rounded-full text-[10px] font-bold uppercase hover:bg-red-700 transition italic shadow-lg shadow-red-600/20 tracking-widest">Menu</button>
+                    <div id="admin-nav-menu" class="hidden absolute right-0 top-full mt-3 w-40 bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden shadow-2xl z-10 animate-fade-in">
+                        <button onclick="toggleAdmin(); toggleAdminNav();" class="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition">Início</button>
+                        <button onclick="logoutAdmin(); toggleAdminNav();" class="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-600 hover:text-white transition">Sair</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Menu de Navegação Interno (Tabs) expandido com todas as opções -->
-            <div id="admin-nav-menu" class="hidden grid grid-cols-2 md:grid-cols-5 gap-2 mb-12 animate-fade-in">
+            <!-- Menu de Navegação Interno (Tabs) -->
+            <div class="grid grid-cols-3 gap-2 mb-12 animate-fade-in">
                 <button onclick="showAdminView('gestao')" class="admin-tab-btn active" id="btn-tab-gestao">Gestão</button>
                 <button onclick="showAdminView('estoque')" class="admin-tab-btn" id="btn-tab-estoque">Estoque</button>
                 <button onclick="showAdminView('financeiro')" class="admin-tab-btn" id="btn-tab-financeiro">Financeiro</button>
-                <button onclick="toggleAdmin(); toggleAdminNav();" class="admin-tab-btn">Ir para o Site</button>
-                <button onclick="logoutAdmin(); toggleAdminNav();" class="admin-tab-btn text-red-500">Sair</button>
             </div>
 
             <!-- VIEW: GESTÃO (O.S e Agendamentos) -->

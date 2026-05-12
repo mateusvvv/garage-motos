@@ -258,6 +258,7 @@ function addPartRow(name = '', price = '') {
 function generateOS(e) {
     e.preventDefault();
     const id = document.getElementById('os-id').value;
+    const existingOS = id ? serviceOrders.find(o => o.id === parseInt(id)) : null;
     const client = document.getElementById('os-client').value;
     const bike = document.getElementById('os-bike').value;
     const labor = parseFloat(document.getElementById('os-labor').value) || 0;
@@ -280,6 +281,7 @@ function generateOS(e) {
 
     const osData = { 
         id: id ? parseInt(id) : Date.now(), 
+        osNumber: existingOS?.osNumber || getNextOSNumber(),
         date, 
         client, 
         bike, 
@@ -301,6 +303,18 @@ function generateOS(e) {
     downloadOSPDF(osData);
     saveAndRefresh();
     resetOSForm();
+}
+
+function getNextOSNumber() {
+    return serviceOrders.reduce((max, os, index) => {
+        return Math.max(max, Number(os.osNumber) || index + 1);
+    }, 0) + 1;
+}
+
+function formatOSNumber(os, fallbackIndex = 0) {
+    const orderIndex = serviceOrders.findIndex(order => order.id === os.id);
+    const number = Number(os.osNumber) || (orderIndex >= 0 ? orderIndex + 1 : fallbackIndex + 1);
+    return String(number).padStart(3, '0');
 }
 
 async function downloadOSPDF(osOrId) {
@@ -338,7 +352,7 @@ async function downloadOSPDF(osOrId) {
     doc.text('ORDEM DE SERVICO', 196, 19, { align: 'right' });
     doc.setFontSize(10);
     doc.setTextColor(225, 29, 72);
-    doc.text(`#${os.id}`, 196, 29, { align: 'right' });
+    doc.text(`O.S #${formatOSNumber(os)}`, 196, 29, { align: 'right' });
     doc.setTextColor(210, 210, 210);
     doc.text(`Emitida em ${os.date}`, 196, 36, { align: 'right' });
 
@@ -752,7 +766,7 @@ function renderHistory() {
     body.innerHTML = serviceOrders.map((os, index) => `
         <tr class="text-sm">
             <td class="py-4 font-black text-red-600 italic leading-tight">
-                #${index + 1} O.S
+                O.S #${formatOSNumber(os, index)}
                 ${os.editCount > 0 ? `<br><span class="text-[9px] text-neutral-500 not-italic font-bold uppercase tracking-tighter">Editada ${os.editCount}x</span>` : ''}
             </td>
             <td class="py-4 text-neutral-400">${os.date}</td>
