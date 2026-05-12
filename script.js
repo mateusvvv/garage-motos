@@ -8,6 +8,7 @@ let serviceOrders = JSON.parse(localStorage.getItem('gm_orders')) || [];
 let appointmentRequests = []; // Sincronizado em tempo real com o Firebase
 let pickerCalendar;
 let tempSelectedDate = '';
+let currentOSDiscounts = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('calendar')) initCalendar();
@@ -98,6 +99,7 @@ window.deleteAppointment = deleteAppointment;
 window.clearBlockedDates = clearBlockedDates;
 window.printLowStockReport = printLowStockReport;
 window.addPartRow = addPartRow;
+window.applyOSDiscount = applyOSDiscount;
 window.editOS = editOS;
 window.deleteOS = deleteOS;
 window.downloadOSPDF = downloadOSPDF;
@@ -248,11 +250,80 @@ function addPartRow(name = '', price = '') {
     const div = document.createElement('div');
     div.className = 'flex gap-2 items-center os-part-row';
     div.innerHTML = `
-        <input type="text" placeholder="Nome da Peça" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-name" value="${name}">
+        <input type="text" placeholder="Nome da Peça" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-name" value="${name}" oninput="updateDiscountTargets()">
         <input type="number" step="0.01" placeholder="R$" class="w-20 md:w-24 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-price" value="${price}">
-        <button type="button" onclick="this.parentElement.remove()" class="text-neutral-600 hover:text-red-500 p-1">✕</button>
+        <button type="button" onclick="this.parentElement.remove(); updateDiscountTargets();" class="text-neutral-600 hover:text-red-500 p-1">✕</button>
     `;
     container.appendChild(div);
+    updateDiscountTargets();
+}
+
+window.updateDiscountTargets = updateDiscountTargets;
+
+function updateDiscountTargets() {
+    const targetSelect = document.getElementById('os-discount-target');
+    if (!targetSelect) return;
+
+    const selectedValue = targetSelect.value;
+    const partRows = Array.from(document.querySelectorAll('.os-part-row'));
+    targetSelect.innerHTML = '';
+
+    const laborOption = document.createElement('option');
+    laborOption.value = 'labor';
+    laborOption.textContent = 'Mão de Obra';
+    targetSelect.appendChild(laborOption);
+
+    partRows.forEach((row, index) => {
+        const name = row.querySelector('.part-name').value.trim() || `Peça ${index + 1}`;
+        const option = document.createElement('option');
+        option.value = `part-${index}`;
+        option.textContent = name;
+        targetSelect.appendChild(option);
+    });
+
+    if ([...targetSelect.options].some(option => option.value === selectedValue)) {
+        targetSelect.value = selectedValue;
+    }
+}
+
+function applyOSDiscount() {
+    const target = document.getElementById('os-discount-target').value;
+    const type = document.getElementById('os-discount-type').value;
+    const discountInput = document.getElementById('os-discount-value');
+    const discountValue = parseFloat(discountInput.value) || 0;
+
+    if (discountValue <= 0) {
+        alert('Informe um valor de desconto válido.');
+        return;
+    }
+
+    const targetInput = target === 'labor'
+        ? document.getElementById('os-labor')
+        : document.querySelectorAll('.os-part-row')[parseInt(target.replace('part-', ''), 10)]?.querySelector('.part-price');
+
+    if (!targetInput) {
+        alert('Selecione um item válido para aplicar o desconto.');
+        return;
+    }
+
+    const currentValue = parseFloat(targetInput.value) || 0;
+    const discountAmount = type === 'percent'
+        ? currentValue * Math.min(discountValue, 100) / 100
+        : discountValue;
+    const newValue = Math.max(currentValue - discountAmount, 0);
+    const appliedAmount = currentValue - newValue;
+
+    targetInput.value = newValue.toFixed(2);
+    currentOSDiscounts.push({
+        target: target === 'labor'
+            ? 'Mão de Obra'
+            : document.getElementById('os-discount-target').selectedOptions[0]?.textContent || 'Peça',
+        type,
+        value: discountValue,
+        amount: appliedAmount
+    });
+    discountInput.value = '';
+    alert(`Desconto aplicado. Novo valor: R$ ${newValue.toFixed(2)}`);
 }
 
 function generateOS(e) {
@@ -289,6 +360,8 @@ function generateOS(e) {
         labor,
         parts,
         partsTotal,
+        discounts: currentOSDiscounts,
+        discountTotal: currentOSDiscounts.reduce((sum, discount) => sum + Number(discount.amount || 0), 0),
         editCount: 0
     };
 
@@ -311,10 +384,10 @@ function getNextOSNumber() {
     }, 0) + 1;
 }
 
-function formatOSNumber(os, fallbackIndex = 0) {
+function formatOSNumber(os, fallbackIndex = 0, digits = 3) {
     const orderIndex = serviceOrders.findIndex(order => order.id === os.id);
     const number = Number(os.osNumber) || (orderIndex >= 0 ? orderIndex + 1 : fallbackIndex + 1);
-    return String(number).padStart(3, '0');
+    return String(number).padStart(digits, '0');
 }
 
 async function downloadOSPDF(osOrId) {
@@ -327,6 +400,7 @@ async function downloadOSPDF(osOrId) {
     const doc = new jsPDF();
     const logoData = await loadImageForPDF('logo-branca.png');
     const parts = os.parts || [];
+    const discounts = os.discounts || [];
     const money = value => `R$ ${Number(value || 0).toFixed(2)}`;
     
     doc.setFillColor(250, 250, 250);
@@ -376,7 +450,7 @@ async function downloadOSPDF(osOrId) {
     doc.roundedRect(14, 104, 182, 11, 1.5, 1.5, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(9);
-    doc.text('DESCRICAO', 20, 111);
+    doc.text('DESCRIÇÃO', 20, 111);
     doc.text('VALOR', 186, 111, { align: 'right' });
 
     let y = 126;
@@ -406,9 +480,29 @@ async function downloadOSPDF(osOrId) {
         y += 11;
     }
 
+    if (discounts.length > 0) {
+        doc.setTextColor(225, 29, 72);
+        doc.setFont(undefined, 'bold');
+        discounts.forEach(discount => {
+            const discountText = discount.type === 'percent'
+                ? `Desconto em ${discount.target} (${Number(discount.value || 0).toFixed(2)}%)`
+                : `Desconto em ${discount.target}`;
+            const lines = doc.splitTextToSize(discountText.toUpperCase(), 130);
+            doc.text(lines, 20, y);
+            doc.text(`- ${money(discount.amount)}`, 186, y, { align: 'right' });
+            y += Math.max(10, lines.length * 5 + 4);
+            doc.setDrawColor(235, 235, 235);
+            doc.line(20, y, 190, y);
+            y += 6;
+        });
+        doc.setFont(undefined, 'normal');
+        doc.setTextColor(0, 0, 0);
+    }
+
     const totalsY = Math.max(y + 8, 218);
+    const totalsHeight = discounts.length > 0 ? 43 : 34;
     doc.setFillColor(245, 245, 245);
-    doc.roundedRect(118, totalsY, 78, 34, 2, 2, 'F');
+    doc.roundedRect(118, totalsY, 78, totalsHeight, 2, 2, 'F');
     doc.setTextColor(90, 90, 90);
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
@@ -416,12 +510,16 @@ async function downloadOSPDF(osOrId) {
     doc.text(money(os.partsTotal), 188, totalsY + 10, { align: 'right' });
     doc.text('MAO DE OBRA', 126, totalsY + 19);
     doc.text(money(os.labor), 188, totalsY + 19, { align: 'right' });
+    if (discounts.length > 0) {
+        doc.text('DESCONTO', 126, totalsY + 28);
+        doc.text(`- ${money(os.discountTotal)}`, 188, totalsY + 28, { align: 'right' });
+    }
     doc.setFillColor(225, 29, 72);
-    doc.roundedRect(118, totalsY + 24, 78, 14, 2, 2, 'F');
+    doc.roundedRect(118, totalsY + (discounts.length > 0 ? 33 : 24), 78, 14, 2, 2, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(12);
-    doc.text('TOTAL', 126, totalsY + 33);
-    doc.text(money(os.total), 188, totalsY + 33, { align: 'right' });
+    doc.text('TOTAL', 126, totalsY + (discounts.length > 0 ? 42 : 33));
+    doc.text(money(os.total), 188, totalsY + (discounts.length > 0 ? 42 : 33), { align: 'right' });
 
     doc.setTextColor(115, 115, 115);
     doc.setFontSize(8);
@@ -430,7 +528,7 @@ async function downloadOSPDF(osOrId) {
     doc.setDrawColor(225, 29, 72);
     doc.line(14, 272, 196, 272);
     
-    doc.save(`OS_${os.client}_${os.id}.pdf`);
+    doc.save(`OS_${formatOSNumber(os, 0, 5)}.pdf`);
 }
 
 // --- SISTEMA DE AGENDAMENTO ---
@@ -795,6 +893,7 @@ function editOS(id) {
     container.innerHTML = '';
     os.parts.forEach(p => addPartRow(p.name, p.price));
     if (os.parts.length === 0) addPartRow();
+    currentOSDiscounts = [...(os.discounts || [])];
     
     document.getElementById('os-submit-btn').textContent = 'Atualizar O.S & Baixar';
     document.getElementById('os-cancel-edit').classList.remove('hidden');
@@ -810,7 +909,11 @@ function resetOSForm() {
     document.getElementById('os-form').reset();
     document.getElementById('os-id').value = '';
     document.getElementById('os-parts-container').innerHTML = '';
+    currentOSDiscounts = [];
     addPartRow();
+    document.getElementById('os-discount-value').value = '';
+    document.getElementById('os-discount-type').value = 'fixed';
+    updateDiscountTargets();
     document.getElementById('os-submit-btn').textContent = 'Gerar PDF & Salvar';
     document.getElementById('os-cancel-edit').classList.add('hidden');
 }
