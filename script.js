@@ -693,11 +693,11 @@ function saveAndRefresh() {
 
 function renderShop() {
     const containers = [
-        { el: document.getElementById('shop-container'), limit: 4 },
-        { el: document.getElementById('full-shop-container'), limit: 100 }
+        { el: document.getElementById('shop-container'), limit: 4, showStock: false },
+        { el: document.getElementById('full-shop-container'), limit: 100, showStock: true }
     ];
 
-    containers.forEach(({ el, limit }) => {
+    containers.forEach(({ el, limit, showStock }) => {
         if (!el) return;
         el.innerHTML = products.slice(0, limit).map(p => `
             <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
@@ -709,7 +709,8 @@ function renderShop() {
                 </div>
                 <div class="p-3 md:p-5 flex flex-col flex-grow">
                     <h5 class="font-bold text-xs md:text-lg mb-1 truncate uppercase">${p.name}</h5>
-                    <p class="text-red-600 font-black text-sm md:text-2xl mb-3 md:mb-4">R$ ${parseFloat(p.price).toFixed(2)}</p>
+                    <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${parseFloat(p.price).toFixed(2)}</p>
+                    ${showStock ? `<p class="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest font-bold mb-3 md:mb-4">${formatStockLabel(p.stock)}</p>` : ''}
                     <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de comprar o produto: ${encodeURIComponent(p.name)}" 
                        target="_blank" 
                        class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition">
@@ -719,6 +720,11 @@ function renderShop() {
             </div>
         `).join('');
     });
+}
+
+function formatStockLabel(stock) {
+    const quantity = Number.parseInt(stock, 10) || 0;
+    return `${quantity} ${quantity === 1 ? 'unidade disponível' : 'unidades disponíveis'}`;
 }
 
 function renderHistory() {
