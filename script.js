@@ -93,6 +93,7 @@ window.showAdminView = showAdminView;
 window.logoutAdmin = logoutAdmin;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
+window.deleteAllProducts = deleteAllProducts;
 window.deleteAppointment = deleteAppointment;
 window.clearBlockedDates = clearBlockedDates;
 window.printLowStockReport = printLowStockReport;
@@ -213,6 +214,24 @@ function editProduct(id) {
 async function deleteProduct(id) {
     if (confirm('Deseja realmente excluir este produto do estoque?')) {
         await deleteDoc(doc(db, "products", id));
+    }
+}
+
+async function deleteAllProducts() {
+    if (products.length === 0) {
+        alert('O estoque já está vazio.');
+        return;
+    }
+
+    if (!confirm(`Tem certeza que deseja remover todos os ${products.length} itens do estoque? Essa ação não pode ser desfeita.`)) return;
+
+    try {
+        await Promise.all(products.map(product => deleteDoc(doc(db, "products", product.id))));
+        resetProductForm();
+        alert('Todos os itens foram removidos do estoque.');
+    } catch (error) {
+        console.error("Erro ao remover todos os produtos do Firestore:", error);
+        alert('Erro ao remover os itens do estoque. Verifique sua conexão.');
     }
 }
 
