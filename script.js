@@ -637,6 +637,7 @@ function initCalendar() {
     calendar = new FullCalendar.Calendar(calendarEl, {
         initialView: 'dayGridMonth',
         locale: 'pt-br',
+        height: 'auto',
         headerToolbar: { left: 'title', center: '', right: 'today prev,next' },
         buttonText: { today: 'Hoje' },
         validRange: {
@@ -646,6 +647,13 @@ function initCalendar() {
             daysOfWeek: [1, 2, 3, 4, 5], // Segunda a Sexta
         },
         events: [],
+        eventContent: function(arg) {
+            const type = arg.event.extendedProps.type;
+            if (type === 'request') { // Agendamento de serviço
+                return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem;" title="${arg.event.title}">🛠️</div>` };
+            }
+            return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem; white-space: normal; line-height: 1.1;">${arg.event.title}</div>` }; // Bloqueio
+        },
         dateClick: function(info) {
             const day = new Date(info.date).getUTCDay();
             if (day === 0 || day === 6) return;
@@ -655,6 +663,10 @@ function initCalendar() {
                 alert("Desculpe, esta data está indisponível.");
                 return;
             }
+
+            // Remove destaque de outros dias e adiciona no clicado
+            document.querySelectorAll('.fc-daygrid-day').forEach(el => el.classList.remove('selected-day'));
+            info.dayEl.classList.add('selected-day');
 
             // Seleciona o dia diretamente no formulário
             const parts = info.dateStr.split('-');
@@ -719,6 +731,13 @@ function openAppointmentPicker() {
             },
             businessHours: { daysOfWeek: [1, 2, 3, 4, 5] },
             events: appointmentRequests,
+            eventContent: function(arg) {
+                const type = arg.event.extendedProps.type;
+                if (type === 'request') { // Agendamento de serviço
+                    return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem;" title="${arg.event.title}">🛠️</div>` };
+                }
+                return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem; white-space: normal; line-height: 1.1;">${arg.event.title}</div>` }; // Bloqueio
+            },
             dateClick: function(info) {
                 const day = new Date(info.date).getUTCDay();
                 if (day === 0 || day === 6) return;
@@ -729,6 +748,10 @@ function openAppointmentPicker() {
                     alert("Desculpe, esta data está indisponível.");
                     return;
                 }
+
+                // Destaque visual no picker
+                document.querySelectorAll('.fc-daygrid-day').forEach(el => el.classList.remove('selected-day'));
+                info.dayEl.classList.add('selected-day');
 
                 const parts = info.dateStr.split('-');
                 document.getElementById('service-date-only').value = info.dateStr;
@@ -784,7 +807,6 @@ async function blockDate(e) {
             title: `🚫 ${reason}`,
             start: date,
             color: '#262626',
-            display: 'background',
             type: 'block'
         });
         e.target.reset();
