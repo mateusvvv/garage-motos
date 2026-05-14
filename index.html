@@ -57,17 +57,17 @@
                         <span class="hidden md:flex flex-col"><strong>(81) 99373-5372</strong><small>WhatsApp</small></span>
                     </a>
                     <!-- Botão Hamburger para o Menu do Site (Mobile) -->
-                    <button onclick="toggleMenu()" class="lg:hidden flex items-center justify-center text-white hover:text-red-600 transition" title="Menu Principal">
-                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    <button onclick="toggleMenu()" class="lg:hidden flex items-center justify-center text-white hover:text-red-600 transition font-black italic text-xs tracking-widest" title="Menu Principal">
+                        MENU
                     </button>
-                    <button onclick="toggleAdmin()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold text-xs uppercase transition shadow-lg shadow-red-600/20 tracking-widest">Painel</button>
+                    <button onclick="toggleAdmin()" class="hidden lg:block bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold text-xs uppercase transition shadow-lg shadow-red-600/20 tracking-widest">MENU</button>
                 </div>
             </div>
         </nav>
     </header>
 
     <!-- Menu Principal Overlay -->
-    <div id="main-menu" class="fixed inset-0 z-[60] bg-black/95 hidden flex flex-col items-center justify-center space-y-8 text-2xl font-black uppercase italic tracking-widest">
+    <div id="main-menu" class="fixed inset-0 z-[1100] bg-black/95 hidden flex flex-col items-center justify-center space-y-8 text-2xl font-black uppercase italic tracking-widest">
         <button onclick="toggleMenu()" class="absolute top-6 right-6 text-neutral-500 hover:text-white text-sm">✕ FECHAR</button>
         <a href="#inicio" onclick="toggleMenu()" class="hover:text-red-600 transition">INÍCIO</a>
         <a href="#servicos" onclick="toggleMenu()" class="hover:text-red-600 transition">SERVIÇOS</a>
@@ -109,17 +109,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
-
-    <!-- Seção de Revenda (Pública) -->
-    <section id="loja" class="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto">
-        <div class="flex justify-between items-center mb-8 md:mb-12">
-            <h3 class="text-xl md:text-4xl font-black uppercase italic border-l-4 md:border-l-8 border-red-600 pl-4 md:pl-6">Peças & <span class="text-red-600">Acessórios</span></h3>
-            <a href="pecas.html" class="text-[10px] md:text-xs font-bold text-red-600 hover:underline uppercase tracking-widest italic">Ver Tudo →</a>
-        </div>
-        <div id="shop-container" class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-            <!-- Itens injetados via JS -->
         </div>
     </section>
 
@@ -177,7 +166,7 @@
     </div>
 
     <!-- Admin Overlay -->
-    <div id="admin-panel" class="fixed inset-0 z-[100] bg-neutral-950 hidden overflow-y-auto">
+    <div id="admin-panel" class="fixed inset-0 z-[1200] bg-neutral-950 hidden overflow-y-auto">
         <!-- Container de Login -->
         <div id="admin-login-ui" class="flex items-center justify-center min-h-screen p-4">
             <div class="bg-neutral-900 p-8 rounded-2xl border border-neutral-800 w-full max-w-md shadow-2xl">
@@ -203,6 +192,7 @@
                     <p id="admin-role-label" class="text-[10px] text-neutral-500 uppercase tracking-widest font-bold mt-2">Perfil: administrador</p>
                 </div>
                 <div class="flex items-center gap-2">
+                    <!-- Este é o botão de Logout -->
                     <button onclick="logoutAdmin()" class="bg-red-600 px-5 py-2 rounded-full text-[10px] font-black uppercase hover:bg-red-700 transition italic shadow-lg shadow-red-600/20 tracking-widest">Sair</button>
                     <button onclick="toggleAdmin()" class="bg-neutral-800 px-5 py-2 rounded-full text-[10px] font-black uppercase hover:bg-neutral-700 transition italic tracking-widest">Fechar</button>
                 </div>
@@ -355,7 +345,7 @@
             <!-- VIEW: FINANCEIRO (Gráficos e Histórico) -->
             <div id="view-financeiro" class="admin-view hidden space-y-12">
                 <!-- Gráfico de Faturamento -->
-                <div id="finance-summary" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4"></div>
+                <div id="finance-summary" class="space-y-8 animate-fade-in"></div>
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <h4 class="text-xl font-bold uppercase tracking-tight italic">Desempenho Financeiro</h4>
@@ -387,20 +377,14 @@
     </div>
 
     <!-- Appointment Picker Overlay -->
-    <div id="appointment-picker-overlay" class="fixed inset-0 z-[110] bg-neutral-950 hidden overflow-y-auto animate-fade-in">
-        <div class="relative w-full max-w-2xl mx-auto min-h-screen flex flex-col p-6 md:p-12">
+    <div id="appointment-picker-overlay" class="fixed inset-0 z-[1300] bg-neutral-950 hidden overflow-y-auto animate-fade-in">
+        <div class="relative w-full max-w-2xl mx-auto min-h-screen flex flex-col pt-20 pb-10 px-6 md:pt-24 md:px-12">
             <!-- Botão Fechar Universal -->
-            <button onclick="closeAppointmentPicker()" class="absolute top-4 right-6 text-white hover:text-red-500 text-xl font-bold z-10">✕</button>
+            <button onclick="closeAppointmentPicker()" class="absolute top-6 right-6 text-neutral-500 hover:text-white text-[10px] font-black uppercase tracking-widest z-10">✕ Fechar</button>
 
             <div id="picker-step-1">
-                <h4 class="text-2xl font-black uppercase italic mb-6 text-center text-red-600 tracking-tighter">Selecione o Dia</h4>
+                <h4 class="text-2xl md:text-3xl font-black uppercase italic mb-8 text-center text-red-600 tracking-tighter">Selecione o Dia</h4>
                 <div id="picker-calendar" class="picker-calendar-custom"></div>
-            </div>
-            <div id="picker-step-2" class="hidden">
-                <h4 class="text-2xl font-black uppercase italic mb-1 text-center text-red-600 tracking-tighter">Dia Selecionado</h4>
-                <p id="picked-day-display" class="text-center text-[10px] text-white uppercase font-black mb-8 tracking-[0.2em]"></p>
-                <div id="clock-grid" class="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto pr-2 scrollbar-custom"></div>
-                <button onclick="backToCalendar()" class="w-full mt-8 text-white uppercase text-[10px] font-black tracking-[0.2em] hover:text-red-500 transition italic">← Voltar para o Calendário</button>
             </div>
         </div>
     </div>

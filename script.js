@@ -11,13 +11,20 @@ let pickerCalendar;
 let tempSelectedDate = '';
 let currentOSDiscounts = [];
 
-// Tornar funções globais antes do DOMContentLoaded para evitar erros de referência
+// Função centralizada para gerenciar o bloqueio de rolagem (Scroll Lock)
+function updateScrollLock() {
+    const isMenuOpen = !document.getElementById('main-menu')?.classList.contains('hidden');
+    const isAdminOpen = !document.getElementById('admin-panel')?.classList.contains('hidden');
+    const isPickerOpen = !document.getElementById('appointment-picker-overlay')?.classList.contains('hidden');
+    document.body.style.overflow = (isMenuOpen || isAdminOpen || isPickerOpen) ? 'hidden' : '';
+}
+
+// Tornar funções globais para o HTML
 window.toggleMenu = toggleMenu;
 window.toggleAdmin = toggleAdmin;
 window.toggleShop = toggleShop;
 window.openAppointmentPicker = openAppointmentPicker;
 window.closeAppointmentPicker = closeAppointmentPicker;
-window.backToCalendar = backToCalendar;
 window.toggleAdminNav = toggleAdminNav;
 window.showAdminView = showAdminView;
 window.logoutAdmin = logoutAdmin;
@@ -26,14 +33,19 @@ window.deleteProduct = deleteProduct;
 window.loadOSDraft = loadOSDraft;
 window.deleteOpenOS = deleteOpenOS;
 window.finalizeOS = finalizeOS;
+window.deleteAllProducts = deleteAllProducts;
+window.deleteAppointment = deleteAppointment;
+window.clearBlockedDates = clearBlockedDates;
+window.printLowStockReport = printLowStockReport;
+window.addPartRow = addPartRow;
+window.applyOSDiscount = applyOSDiscount;
+window.editOS = editOS;
+window.deleteOS = deleteOS;
+window.downloadOSPDF = downloadOSPDF;
 
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('calendar')) initCalendar();
     initProductsSync(); // Nova função para sincronizar produtos
-    renderHistory();
-    renderOpenOrders();
-    updateRevenueFilterOptions();
-    renderChart();
     
     // Auxiliar para adicionar listeners apenas se o elemento existir
     const addSafeListener = (id, event, fn) => {
@@ -54,11 +66,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     addPartRow(); // Inicia com uma linha de peça vazia
 
+    // Inicializa views se os dados locais existirem
+    renderHistory();
+    renderOpenOrders();
+    updateRevenueFilterOptions();
+    renderChart(); // Agora com verificação interna de existência
+
     // Observador de estado de autenticação
     onAuthStateChanged(auth, (user) => {
         const dashboard = document.getElementById('admin-dashboard-ui');
         const loginUI = document.getElementById('admin-login-ui');
         
+        // Verifica se os elementos existem na página atual para evitar erros
+        if (!dashboard || !loginUI) return;
+
         if (user) {
             dashboard.classList.remove('hidden');
             loginUI.classList.add('hidden');
@@ -89,25 +110,16 @@ async function logoutAdmin() {
 
 function toggleMenu() {
     const menu = document.getElementById('main-menu');
-    const isHidden = menu.classList.toggle('hidden');
-    document.body.style.overflow = isHidden ? '' : 'hidden';
+    menu.classList.toggle('hidden');
+    updateScrollLock();
 }
 
 function toggleAdmin() {
     const panel = document.getElementById('admin-panel');
-    const isHidden = panel.classList.toggle('hidden');
-    document.body.style.overflow = isHidden ? '' : 'hidden';
+    panel.classList.toggle('hidden');
+    updateScrollLock();
     renderAdminStock(); // Atualiza estoque na visão admin
 }
-window.deleteAllProducts = deleteAllProducts;
-window.deleteAppointment = deleteAppointment;
-window.clearBlockedDates = clearBlockedDates;
-window.printLowStockReport = printLowStockReport;
-window.addPartRow = addPartRow;
-window.applyOSDiscount = applyOSDiscount;
-window.editOS = editOS;
-window.deleteOS = deleteOS;
-window.downloadOSPDF = downloadOSPDF;
 
 function toggleAdminNav() {
     const nav = document.getElementById('admin-nav-menu');
@@ -143,8 +155,8 @@ function showAdminView(viewName) {
 
 function toggleShop() {
     const panel = document.getElementById('shop-overlay');
-    const isHidden = panel.classList.toggle('hidden');
-    document.body.style.overflow = isHidden ? '' : 'hidden';
+    panel.classList.toggle('hidden');
+    updateScrollLock();
 }
 
 // --- SISTEMA DE PRODUTOS ---
@@ -348,6 +360,8 @@ function getOSFormData() {
     const client = document.getElementById('os-client').value;
     const bike = document.getElementById('os-bike').value;
     const observations = document.getElementById('os-observations').value;
+    const mechanic = document.getElementById('os-mechanic').value;
+    const paymentMethod = document.getElementById('os-payment').value;
     const labor = parseFloat(document.getElementById('os-labor').value) || 0;
     
     const partRows = document.querySelectorAll('.os-part-row');
@@ -368,6 +382,8 @@ function getOSFormData() {
         client,
         bike,
         observations,
+        mechanic,
+        paymentMethod,
         labor,
         parts,
         partsTotal,
@@ -616,14 +632,11 @@ function initCalendar() {
                 return;
             }
 
-            // Abre o modal e já pula para a escolha de horário para a data clicada
-            openAppointmentPicker();
-            tempSelectedDate = info.dateStr;
+            // Seleciona o dia diretamente no formulário
             const parts = info.dateStr.split('-');
-            document.getElementById('picked-day-display').textContent = `Agendando para ${parts[2]}/${parts[1]}`;
-            document.getElementById('picker-step-1').classList.add('hidden');
-            document.getElementById('picker-step-2').classList.remove('hidden');
-            renderClockGrid();
+            document.getElementById('service-date-only').value = info.dateStr;
+            document.getElementById('picker-label').textContent = 'Dia Selecionado:';
+            document.getElementById('picker-selected').textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
         }
     });
     calendar.render();
@@ -653,13 +666,13 @@ function openAppointmentPicker() {
     document.getElementById('appointment-picker-overlay').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     document.getElementById('picker-step-1').classList.remove('hidden');
-    document.getElementById('picker-step-2').classList.add('hidden');
     
     if (!pickerCalendar) {
         const calendarEl = document.getElementById('picker-calendar');
         pickerCalendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'dayGridMonth',
             locale: 'pt-br',
+            height: 'auto',
             headerToolbar: { left: 'title', center: '', right: 'today prev,next' },
             buttonText: { today: 'Hoje' },
             validRange: {
@@ -678,12 +691,11 @@ function openAppointmentPicker() {
                     return;
                 }
 
-                tempSelectedDate = info.dateStr;
                 const parts = info.dateStr.split('-');
-                document.getElementById('picked-day-display').textContent = `Agendando para ${parts[2]}/${parts[1]}`;
-                document.getElementById('picker-step-1').classList.add('hidden');
-                document.getElementById('picker-step-2').classList.remove('hidden');
-                renderClockGrid();
+                document.getElementById('service-date-only').value = info.dateStr;
+                document.getElementById('picker-label').textContent = 'Dia Selecionado:';
+                document.getElementById('picker-selected').textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                closeAppointmentPicker();
             }
         });
     } else {
@@ -693,41 +705,9 @@ function openAppointmentPicker() {
     setTimeout(() => pickerCalendar.render(), 100);
 }
 
-function renderClockGrid() {
-    const grid = document.getElementById('clock-grid');
-    grid.innerHTML = '';
-    // Das 07:00 às 17:00 (último horário disponível para início de serviço)
-    for (let h = 7; h <= 17; h++) {
-        ['00', '30'].forEach(m => {
-            if (h === 17 && m === '30') return;
-            const time = `${h.toString().padStart(2, '0')}:${m}`;
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'hour-btn animate-fade-in';
-            btn.textContent = time;
-            btn.onclick = () => {
-                document.getElementById('service-date-only').value = tempSelectedDate;
-                document.getElementById('service-time-only').value = time;
-                const parts = tempSelectedDate.split('-');
-                document.getElementById('picker-label').textContent = 'Selecionado:';
-                document.getElementById('picker-selected').textContent = `${parts[2]}/${parts[1]} às ${time}`;
-                closeAppointmentPicker();
-                document.getElementById('agendamento').scrollIntoView({ behavior: 'smooth' });
-            };
-            grid.appendChild(btn);
-        });
-    }
-}
-
-function backToCalendar() {
-    document.getElementById('picker-step-2').classList.add('hidden');
-    document.getElementById('picker-step-1').classList.remove('hidden');
-    pickerCalendar.render();
-}
-
 function closeAppointmentPicker() {
     document.getElementById('appointment-picker-overlay').classList.add('hidden');
-    document.body.style.overflow = '';
+    updateScrollLock();
 }
 
 async function scheduleService(e) {
@@ -735,22 +715,13 @@ async function scheduleService(e) {
     const name = document.getElementById('client-name').value;
     const bike = document.getElementById('bike-info').value;
     const datePart = document.getElementById('service-date-only').value;
-    const timePart = document.getElementById('service-time-only').value;
 
-    if (!datePart || !timePart) return;
+    if (!datePart) return;
     
-    const fullDateTime = `${datePart}T${timePart}`;
-    const isDuplicate = appointmentRequests.some(app => app.start === fullDateTime);
-
-    if (isDuplicate) {
-        alert("Atenção: Este horário já está reservado para outro cliente. Por favor, selecione outro dia ou hora.");
-        return;
-    }
-
     try {
         await addDoc(collection(db, "appointments"), {
             title: `🛠️ ${bike} - ${name}`,
-            start: `${datePart}T${timePart}`,
+            start: datePart,
             color: '#e11d48',
             clientName: name,
             bikeInfo: bike,
@@ -811,8 +782,11 @@ async function clearBlockedDates() {
 // --- SISTEMA DE GRÁFICOS ---
 let revenueChart;
 function renderChart() {
-    const ctx = document.getElementById('revenueChart').getContext('2d');
+    const canvas = document.getElementById('revenueChart');
+    if (!canvas) return; // Importante: evita que o script trave se o gráfico não existir na página
+    const ctx = canvas.getContext('2d');
     const filter = document.getElementById('revenue-filter').value;
+    const filterLabel = document.getElementById('revenue-filter').selectedOptions[0]?.textContent || 'Total';
     
     let filteredOrders = serviceOrders;
     if (filter !== 'all') {
@@ -865,6 +839,77 @@ function renderChart() {
             }
         }
     });
+
+    updateFinanceSummary(filteredOrders, filterLabel);
+}
+
+function updateFinanceSummary(filteredOrders, filterLabel) {
+    const todayStr = new Date().toLocaleDateString('pt-BR');
+    const todayOrders = serviceOrders.filter(o => o.date === todayStr);
+
+    const calcStats = (orders) => {
+        return orders.reduce((acc, os) => {
+            if (os.mechanic === 'leo') acc.leo += (os.labor || 0);
+            if (os.mechanic === 'wandson') acc.wandson += (os.labor || 0);
+            acc.parts += (os.partsTotal || 0);
+            
+            if (os.paymentMethod === 'pix') acc.pix += (os.total || 0);
+            else if (os.paymentMethod === 'avista') acc.avista += (os.total || 0);
+            else if (os.paymentMethod === 'cartao') acc.cartao += (os.total || 0);
+            
+            acc.total += (os.total || 0);
+            return acc;
+        }, { leo: 0, wandson: 0, parts: 0, pix: 0, avista: 0, cartao: 0, total: 0 });
+    };
+
+    const statsToday = calcStats(todayOrders);
+    const statsPeriod = calcStats(filteredOrders);
+
+    const container = document.getElementById('finance-summary');
+    if (!container) return;
+
+    const renderBlock = (title, stats, isMain = false) => `
+        <div class="col-span-full mb-2">
+            <h5 class="text-[10px] font-black uppercase tracking-[0.3em] ${isMain ? 'text-red-600' : 'text-neutral-500'} italic">${title}</h5>
+        </div>
+        <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
+            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">M.O Léo</p>
+            <p class="text-white font-black text-lg italic">R$ ${stats.leo.toFixed(2)}</p>
+        </div>
+        <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
+            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">M.O Wandson</p>
+            <p class="text-white font-black text-lg italic">R$ ${stats.wandson.toFixed(2)}</p>
+        </div>
+        <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
+            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">Peças</p>
+            <p class="text-white font-black text-lg italic">R$ ${stats.parts.toFixed(2)}</p>
+        </div>
+        <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
+            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">Pix</p>
+            <p class="text-green-500 font-black text-lg italic">R$ ${stats.pix.toFixed(2)}</p>
+        </div>
+        <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
+            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">À Vista</p>
+            <p class="text-green-500 font-black text-lg italic">R$ ${stats.avista.toFixed(2)}</p>
+        </div>
+        <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
+            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">Cartão</p>
+            <p class="text-blue-500 font-black text-lg italic">R$ ${stats.cartao.toFixed(2)}</p>
+        </div>
+        <div class="col-span-full bg-neutral-900 border border-neutral-800 p-4 rounded-xl flex justify-between items-center">
+            <p class="text-[10px] text-neutral-500 font-black uppercase tracking-widest italic">Total Líquido</p>
+            <p class="text-white font-black text-2xl italic">R$ ${stats.total.toFixed(2)}</p>
+        </div>
+    `;
+
+    container.innerHTML = `
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+            ${renderBlock("Hoje (" + todayStr + ")", statsToday, true)}
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 mt-8 pt-8 border-t border-neutral-900">
+            ${renderBlock("Resumo: " + filterLabel, statsPeriod)}
+        </div>
+    `;
 }
 
 // --- HELPERS ---
@@ -976,6 +1021,8 @@ function loadOSDraft(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
+    document.getElementById('os-mechanic').value = os.mechanic || 'leo';
+    document.getElementById('os-payment').value = os.paymentMethod || 'pix';
     document.getElementById('os-labor').value = os.labor;
     
     const container = document.getElementById('os-parts-container');
@@ -995,6 +1042,8 @@ function editOS(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
+    document.getElementById('os-mechanic').value = os.mechanic || 'leo';
+    document.getElementById('os-payment').value = os.paymentMethod || 'pix';
     document.getElementById('os-labor').value = os.labor;
     
     const container = document.getElementById('os-parts-container');
@@ -1043,13 +1092,22 @@ function updateRevenueFilterOptions() {
     const select = document.getElementById('revenue-filter');
     if (!select) return;
     const months = new Set();
+    const years = new Set();
     serviceOrders.forEach(os => {
         const parts = os.date.split('/');
-        if (parts.length === 3) months.add(`${parts[1]}/${parts[2]}`);
+        if (parts.length === 3) {
+            months.add(`${parts[1]}/${parts[2]}`);
+            years.add(parts[2]);
+        }
     });
     
     const currentValue = select.value;
     select.innerHTML = '<option value="all">Faturamento Total</option>';
+    [...years].sort().reverse().forEach(y => {
+        const option = document.createElement('option');
+        option.value = y; option.textContent = `Ano ${y}`;
+        select.appendChild(option);
+    });
     [...months].sort().reverse().forEach(m => {
         const option = document.createElement('option');
         option.value = m; option.textContent = m;
@@ -1219,7 +1277,9 @@ function renderAdminAppointments() {
     container.innerHTML = requests.map(e => `
         <div class="bg-black p-4 rounded border border-neutral-800 flex justify-between items-center">
             <div>
-                <p class="text-red-500 font-black text-xs uppercase italic">${new Date(e.start).toLocaleString('pt-BR')}</p>
+                <p class="text-red-500 font-black text-xs uppercase italic">
+                    ${e.start.split('-').reverse().join('/')}
+                </p>
                 <p class="font-bold text-sm uppercase">${e.clientName || 'Cliente'}</p>
                 <p class="text-xs text-neutral-500 uppercase tracking-widest">${e.bikeInfo || 'Moto'}</p>
             </div>
