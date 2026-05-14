@@ -13,49 +13,102 @@
 <body class="text-white font-['Inter']">
 
     <!-- Header -->
-    <nav class="fixed w-full z-50 bg-black/90 backdrop-blur-md border-b border-red-600/30 px-4 md:px-6 py-3 md:py-4">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <a href="#inicio" class="flex items-center">
-                <img src="logo.png" alt="Garage Motos" class="h-16 md:h-20 w-auto object-contain logo-premium">
-            </a>
-            <div class="flex items-center gap-4 md:gap-6">
-                <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de fazer um orçamento na Garage Motos." target="_blank" class="text-[#25D366] hover:scale-110 transition-transform" title="WhatsApp">
-                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                    </svg>
-                </a>
-                <a href="https://www.instagram.com/garagemotosbj?igsh=MWVpb3Z0MDVubXNyZw==" target="_blank" class="text-[#E4405F] hover:scale-110 transition-transform" title="Instagram">
-                    <svg class="w-5 h-5 md:w-6 md:h-6" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                    </svg>
-                </a>
-                <button onclick="toggleMenu()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-full font-bold text-xs uppercase transition shadow-lg shadow-red-600/20 tracking-widest">Menu</button>
+    <header class="site-header">
+        <div class="top-strip">
+            <div class="max-w-7xl mx-auto flex flex-wrap justify-center md:justify-between items-center gap-3 px-4 md:px-6">
+                <div class="flex flex-wrap items-center justify-center gap-4 md:gap-8">
+                    <span class="top-info">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                        Segunda a Sexta: 07h às 18h
+                    </span>
+                    <span class="top-info">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11Z"/><path d="M12 10.5h.01"/></svg>
+                        Rua Antonio Rodrigues, 100 - Belo Jardim - PE
+                    </span>
+                </div>
+                <div class="hidden md:flex items-center gap-5 text-white">
+                    <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de falar com a Garage Motos." target="_blank" class="social-link" title="WhatsApp">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35Z"/><path d="M12.05 0C5.5 0 .16 5.34.16 11.89c0 2.1.55 4.14 1.59 5.95L.06 24l6.3-1.65a11.88 11.88 0 0 0 5.68 1.45h.01c6.55 0 11.89-5.34 11.89-11.89A11.82 11.82 0 0 0 12.05 0Zm0 21.79h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.74.98 1-3.65-.24-.37a9.86 9.86 0 0 1-1.51-5.26c0-5.45 4.44-9.88 9.89-9.88 2.64 0 5.12 1.03 6.99 2.9a9.82 9.82 0 0 1 2.89 6.99c0 5.45-4.44 9.88-9.88 9.88Z"/></svg>
+                    </a>
+                    <a href="https://www.instagram.com/garagemotosbj?igsh=MWVpb3Z0MDVubXNyZw==" target="_blank" class="social-link" title="Instagram">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.16c3.2 0 3.58.01 4.85.07 3.25.15 4.77 1.69 4.92 4.92.06 1.27.07 1.65.07 4.85s-.01 3.58-.07 4.85c-.15 3.22-1.66 4.77-4.92 4.92-1.27.06-1.64.07-4.85.07s-3.58-.01-4.85-.07c-3.26-.15-4.77-1.7-4.92-4.92-.06-1.27-.07-1.64-.07-4.85s.01-3.58.07-4.85c.15-3.23 1.66-4.77 4.92-4.92 1.27-.06 1.65-.07 4.85-.07ZM12 0C8.74 0 8.33.01 7.05.07 2.7.27.27 2.69.07 7.05.01 8.33 0 8.74 0 12s.01 3.67.07 4.95c.2 4.36 2.62 6.78 6.98 6.98C8.33 23.99 8.74 24 12 24s3.67-.01 4.95-.07c4.35-.2 6.78-2.62 6.98-6.98.06-1.28.07-1.69.07-4.95s-.01-3.67-.07-4.95c-.2-4.35-2.62-6.78-6.98-6.98C15.67.01 15.26 0 12 0Zm0 5.84A6.16 6.16 0 1 0 12 18.16 6.16 6.16 0 0 0 12 5.84Zm0 10.16a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.41-11.85a1.44 1.44 0 1 0 0 2.88 1.44 1.44 0 0 0 0-2.88Z"/></svg>
+                    </a>
+                    <a href="https://www.facebook.com/" target="_blank" class="social-link" title="Facebook">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16.7 13.5l.67-4.36h-4.18V6.31c0-1.19.58-2.36 2.46-2.36h1.9V.24S15.82 0 14.17 0c-3.44 0-5.69 2.09-5.69 5.87v3.27H4.65v4.36h3.83V24h4.71V13.5h3.51Z"/></svg>
+                    </a>
+                </div>
             </div>
         </div>
-    </nav>
+        <nav class="main-nav">
+            <div class="max-w-7xl mx-auto flex justify-between items-center gap-4 px-4 md:px-6">
+                <a href="#inicio" class="flex items-center">
+                    <img src="logo.png" alt="Garage Motos" class="h-14 md:h-20 w-auto object-contain logo-premium">
+                </a>
+                <div class="hidden lg:flex items-center gap-10 nav-links">
+                    <a href="#inicio" class="active">Início</a>
+                    <a href="#servicos">Serviços</a>
+                    <a href="#sobre">Sobre Nós</a>
+                    <a href="pecas.html">Compra de Peças</a>
+                    <a href="#contato">Contato</a>
+                </div>
+                <div class="flex items-center gap-3">
+                    <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de fazer um orçamento na Garage Motos." target="_blank" class="whatsapp-card">
+                        <span class="wa-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35Z"/></svg></span>
+                        <span class="hidden md:flex flex-col"><strong>(81) 99373-5372</strong><small>WhatsApp</small></span>
+                    </a>
+                    <!-- Botão Hamburger para o Menu do Site (Mobile) -->
+                    <button onclick="toggleMenu()" class="lg:hidden flex items-center justify-center text-white hover:text-red-600 transition" title="Menu Principal">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    </button>
+                    <button onclick="toggleAdmin()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold text-xs uppercase transition shadow-lg shadow-red-600/20 tracking-widest">Painel</button>
+                </div>
+            </div>
+        </nav>
+    </header>
 
     <!-- Menu Principal Overlay -->
     <div id="main-menu" class="fixed inset-0 z-[60] bg-black/95 hidden flex flex-col items-center justify-center space-y-8 text-2xl font-black uppercase italic tracking-widest">
         <button onclick="toggleMenu()" class="absolute top-6 right-6 text-neutral-500 hover:text-white text-sm">✕ FECHAR</button>
         <a href="#inicio" onclick="toggleMenu()" class="hover:text-red-600 transition">INÍCIO</a>
+        <a href="#servicos" onclick="toggleMenu()" class="hover:text-red-600 transition">SERVIÇOS</a>
+        <a href="#sobre" onclick="toggleMenu()" class="hover:text-red-600 transition">SOBRE NÓS</a>
         <a href="pecas.html" class="hover:text-red-600 transition">PEÇAS & ACESSÓRIOS</a>
         <a href="#agendamento" onclick="toggleMenu()" class="hover:text-red-600 transition">AGENDAR</a>
+        <a href="#contato" onclick="toggleMenu()" class="hover:text-red-600 transition">CONTATO</a>
         <hr class="w-12 border-red-600 border-2">
-        <button onclick="toggleAdmin(); toggleMenu();" class="hover:text-red-600 transition">PAINEL ADMIN</button>
+        <button onclick="toggleAdmin(); toggleMenu();" class="text-sm text-neutral-500 hover:text-red-600 transition uppercase font-black italic">Acesso Administrativo</button>
     </div>
 
     <!-- Hero Section -->
-    <section id="inicio" class="relative h-screen flex items-center justify-center bg-cover bg-center bg-no-repeat overflow-hidden" style="background-image: url('oficina.jpg');">
-        <!-- Logo de Fundo (Marca d'água discreta) -->
-            <img src="logo.png" alt="" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[130%] md:w-[70%] opacity-[0.15] grayscale brightness-200 pointer-events-none select-none z-10 -rotate-12">
-
-            <div class="absolute inset-0 bg-black/30 z-0"></div> <!-- Reduzido para 30% para a foto aparecer com mais nitidez -->
-            <div class="relative z-20 text-center px-4">
-            <h2 class="text-6xl md:text-8xl font-black uppercase italic mb-4 leading-none tracking-tighter">
-                <span class="text-stroke-white">Potência</span> e <span class="text-stroke-red">Precisão</span>
-            </h2>
-            <p class="text-sm md:text-lg text-neutral-400 max-w-2xl mx-auto mb-2 font-medium uppercase tracking-[0.2em]">Acessórios, Peças e Serviços</p>
-            <a href="#agendamento" class="btn-agendar bg-red-600 hover:bg-red-700 text-white font-black px-8 py-3 rounded-full uppercase text-xs md:text-sm tracking-widest transition-all hover:scale-105 inline-block border-2 border-white/10 shadow-lg shadow-red-600/30">Agendar Serviço</a>
+    <section id="inicio" class="hero-showcase">
+        <div class="hero-bg-overlay" aria-hidden="true"></div>
+        <div class="max-w-7xl mx-auto hero-content px-4 md:px-6">
+            <div class="hero-copy">
+                <span class="hero-badge animate-fade-in">Oficina Especializada</span>
+                <h1 class="animate-fade-in-up">Excelência<br>em <span class="text-red-600">duas rodas</span></h1>
+                <p class="animate-fade-in-up delay-100">Serviços especializados, peças de performance e cuidado artesanal para sua motocicleta.</p>
+                <div class="hero-actions">
+                    <a href="#agendamento" class="btn-hero-main">Agendar Agora</a>
+                    <a href="https://api.whatsapp.com/send?phone=558193735372" target="_blank" class="btn-hero-secondary">WhatsApp</a>
+                </div>
+                <div class="hero-features animate-fade-in delay-200">
+                    <div>
+                        <span class="feature-icon">✓</span>
+                        <strong>Profissionais</strong>
+                        <small>qualificados</small>
+                    </div>
+                    <div>
+                        <span class="feature-icon">⚙</span>
+                        <strong>Peças de</strong>
+                        <small>qualidade</small>
+                    </div>
+                    <div>
+                        <span class="feature-icon">✓</span>
+                        <strong>Garantia em</strong>
+                        <small>todos os serviços</small>
+                    </div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -70,23 +123,38 @@
         </div>
     </section>
 
+    <!-- Sobre Nós -->
+    <section id="sobre" class="py-16 md:py-24 px-4 md:px-6 max-w-7xl mx-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-12 items-center">
+            <div>
+                <h3 class="text-3xl md:text-6xl font-black uppercase italic leading-none tracking-tighter">Sobre a <br><span class="text-red-600">Garage Motos</span></h3>
+                <p class="mt-6 text-[10px] uppercase tracking-[0.4em] text-red-600 font-black italic">Desde setembro de 2023</p>
+            </div>
+            <div class="space-y-6 text-neutral-400 leading-relaxed text-sm md:text-base border-l border-neutral-800 pl-8">
+                <p class="text-white font-medium">A Garage Motos nasceu em setembro de 2023, fruto do sonho de Leonardo (Léo) em criar um espaço de excelência em Belo Jardim.</p>
+                <p>Com mais de 10 anos de experiência na Honda Motorac, Léo trouxe para sua própria oficina o rigor técnico e a paixão necessária para cuidar de cada máquina como se fosse única.</p>
+                <p>Nosso compromisso é oferecer segurança, confiança e a melhor experiência para cada cliente que escolhe a Garage Motos.</p>
+            </div>
+        </div>
+    </section>
+
     <!-- Agendamento (Público) -->
     <section id="agendamento" class="py-24 bg-neutral-900 px-6">
         <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16">
             <div>
-                <h3 class="text-4xl font-black uppercase italic mb-2">Marque seu <span class="text-red-600">Horário</span></h3>
-                <p class="text-white text-xs uppercase tracking-widest mb-8 italic font-bold">Funcionamento: Segunda a Sexta — 07:00 às 17:30</p>
+                <h3 class="text-4xl font-black uppercase italic mb-2">Solicite seu <span class="text-red-600">Dia</span></h3>
+                <p class="text-white text-xs uppercase tracking-widest mb-8 italic font-bold">Funcionamento: Segunda a Sexta — 07:00 às 18:00</p>
                 <form id="appointment-form" class="space-y-6">
                     <input type="text" id="client-name" placeholder="Nome Completo" class="w-full bg-black border border-neutral-700 p-4 rounded focus:border-red-600 outline-none transition" required>
+                    <input type="tel" id="client-phone" placeholder="Telefone / WhatsApp" class="w-full bg-black border border-neutral-700 p-4 rounded focus:border-red-600 outline-none transition" required>
                     <input type="text" id="bike-info" placeholder="Modelo da Moto / Placa" class="w-full bg-black border border-neutral-700 p-4 rounded focus:border-red-600 outline-none transition" required>
                     <div class="space-y-2">
-                        <label class="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1 italic font-bold">Data e Hora do Serviço</label>
+                        <label class="text-[10px] font-black uppercase tracking-widest text-neutral-400 ml-1 italic font-bold">Dia desejado para o serviço</label>
                         <button type="button" onclick="openAppointmentPicker()" class="w-full bg-neutral-800 border border-neutral-700 p-4 rounded text-left text-sm font-bold uppercase tracking-widest hover:border-red-600 transition flex justify-between items-center group">
                             <span id="picker-label" class="text-neutral-500 group-hover:text-white transition">Clique para escolher</span>
                             <span id="picker-selected" class="text-red-600 font-black italic"></span>
                         </button>
                         <input type="hidden" id="service-date-only" required>
-                        <input type="hidden" id="service-time-only" required>
                     </div>
                     <button type="submit" class="w-full bg-red-600 py-3 font-black uppercase tracking-widest hover:bg-red-700 transition text-sm">Solicitar Vaga</button>
                 </form>
@@ -130,21 +198,30 @@
         <!-- Dashboard Admin (Escondido por padrão) -->
         <div id="admin-dashboard-ui" class="hidden p-4 md:p-8 max-w-7xl mx-auto">
             <div class="flex justify-between items-center mb-12 border-b border-neutral-800 pb-6 gap-4">
-                <h2 class="text-lg sm:text-2xl md:text-3xl font-black italic text-red-600 uppercase leading-tight">Dashboard <span id="admin-view-title" class="text-white">GESTÃO</span></h2>
-                <div class="relative flex items-center">
-                    <button onclick="toggleAdminNav()" class="bg-red-600 px-6 py-2 rounded-full text-[10px] font-bold uppercase hover:bg-red-700 transition italic shadow-lg shadow-red-600/20 tracking-widest">Menu</button>
-                    <div id="admin-nav-menu" class="hidden absolute right-0 top-full mt-3 w-40 bg-neutral-900 border border-neutral-800 rounded-lg overflow-hidden shadow-2xl z-10 animate-fade-in">
-                        <button onclick="toggleAdmin(); toggleAdminNav();" class="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition">Início</button>
-                        <button onclick="logoutAdmin(); toggleAdminNav();" class="w-full text-left px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-500 hover:bg-red-600 hover:text-white transition">Sair</button>
-                    </div>
+                <div>
+                    <h2 class="text-lg sm:text-2xl md:text-3xl font-black italic text-red-600 uppercase leading-tight">Dashboard <span id="admin-view-title" class="text-white">GESTÃO</span></h2>
+                    <p id="admin-role-label" class="text-[10px] text-neutral-500 uppercase tracking-widest font-bold mt-2">Perfil: administrador</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="logoutAdmin()" class="bg-red-600 px-5 py-2 rounded-full text-[10px] font-black uppercase hover:bg-red-700 transition italic shadow-lg shadow-red-600/20 tracking-widest">Sair</button>
+                    <button onclick="toggleAdmin()" class="bg-neutral-800 px-5 py-2 rounded-full text-[10px] font-black uppercase hover:bg-neutral-700 transition italic tracking-widest">Fechar</button>
                 </div>
             </div>
 
             <!-- Menu de Navegação Interno (Tabs) -->
             <div class="grid grid-cols-3 gap-2 mb-12 animate-fade-in">
-                <button onclick="showAdminView('gestao')" class="admin-tab-btn active" id="btn-tab-gestao">Gestão</button>
-                <button onclick="showAdminView('estoque')" class="admin-tab-btn" id="btn-tab-estoque">Estoque</button>
-                <button onclick="showAdminView('financeiro')" class="admin-tab-btn" id="btn-tab-financeiro">Financeiro</button>
+                <button onclick="showAdminView('gestao')" class="admin-tab-btn active" id="btn-tab-gestao">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+                    Gestão
+                </button>
+                <button onclick="showAdminView('estoque')" class="admin-tab-btn" id="btn-tab-estoque">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>
+                    Estoque
+                </button>
+                <button onclick="showAdminView('financeiro')" class="admin-tab-btn" id="btn-tab-financeiro">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    Financeiro
+                </button>
             </div>
 
             <!-- VIEW: GESTÃO (O.S e Agendamentos) -->
@@ -159,7 +236,19 @@
                         <input type="hidden" id="os-id">
                         <input type="text" id="os-client" placeholder="Cliente" class="w-full bg-black p-3 rounded border border-neutral-700">
                         <input type="text" id="os-bike" placeholder="Moto" class="w-full bg-black p-3 rounded border border-neutral-700">
-                        <input type="number" step="0.01" id="os-labor" placeholder="Valor Mão de Obra (R$)" class="w-full bg-black p-3 rounded border border-neutral-700">
+                        <textarea id="os-observations" placeholder="Observações / Defeito Relatado" class="w-full bg-black p-3 rounded border border-neutral-700 h-20 resize-none text-sm outline-none focus:border-red-600 transition"></textarea>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <input type="number" step="0.01" id="os-labor" placeholder="Mão de Obra (R$)" class="w-full bg-black p-3 rounded border border-neutral-700 text-[13px]">
+                            <select id="os-mechanic" class="w-full bg-black p-3 rounded border border-neutral-700 text-[13px] outline-none focus:border-red-600 transition">
+                                <option value="leo">Léo</option>
+                                <option value="wandson">Wandson</option>
+                            </select>
+                            <select id="os-payment" class="w-full bg-black p-3 rounded border border-neutral-700 text-[13px] outline-none focus:border-red-600 transition">
+                                <option value="pix">Pix</option>
+                                <option value="avista">À vista</option>
+                                <option value="cartao">Cartão</option>
+                            </select>
+                        </div>
                         
                         <div id="os-parts-container" class="space-y-2">
                             <!-- Linhas de peças dinâmicas -->
@@ -181,7 +270,10 @@
                             <button type="button" onclick="applyOSDiscount()" class="w-full bg-neutral-800 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-red-600 transition">Aplicar Desconto</button>
                         </div>
                         
-                        <button type="submit" id="os-submit-btn" class="w-full bg-red-600 py-3 font-bold uppercase hover:bg-red-700 transition">Gerar PDF & Salvar</button>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <button type="submit" id="os-submit-btn" class="w-full bg-red-600 py-3 font-bold uppercase hover:bg-red-700 transition">Salvar Rascunho</button>
+                            <button type="button" id="os-close-btn" class="w-full bg-white text-black py-3 font-bold uppercase hover:bg-neutral-200 transition">Finalizar & Gerar PDF</button>
+                        </div>
                         <button type="button" id="os-cancel-edit" class="w-full bg-neutral-800 py-2 font-bold uppercase hover:bg-neutral-700 transition hidden">Cancelar Edição</button>
                     </form>
                 </div>
@@ -195,6 +287,15 @@
                         <!-- Lista de solicitações de clientes -->
                     </div>
                 </div>
+                </div>
+
+                <!-- Ordens em aberto -->
+                <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
+                    <h4 class="text-xl font-bold mb-2 flex items-center gap-2 uppercase tracking-tight">
+                        <span class="w-2 h-6 bg-red-600 block"></span> Ordens em Aberto
+                    </h4>
+                    <p id="open-os-count" class="text-xs text-neutral-500 uppercase font-bold mb-6">Até 15 O.S abertas simultaneamente</p>
+                    <div id="open-os-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                 </div>
 
                 <!-- Bloqueio de Agenda -->
@@ -233,6 +334,7 @@
                             <input type="number" id="prod-price" placeholder="Preço Venda" class="w-full bg-black p-3 rounded border border-neutral-700" required>
                             <input type="number" id="prod-stock" placeholder="Quantidade" class="w-full bg-black p-3 rounded border border-neutral-700" required>
                         </div>
+                        <input type="text" id="prod-location" placeholder="Localização da peça (ex: Prateleira A2)" class="w-full bg-black p-3 rounded border border-neutral-700">
                         <input type="file" id="prod-image" accept="image/*" class="text-sm text-neutral-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:bg-neutral-800 file:text-white">
                         <button type="submit" class="w-full bg-white text-black py-3 font-bold uppercase hover:bg-neutral-200 transition">Adicionar ao Estoque</button>
                         <button type="button" id="prod-cancel-edit" class="w-full bg-neutral-800 py-2 font-bold uppercase hover:bg-neutral-700 transition hidden">Cancelar Edição</button>
@@ -253,6 +355,7 @@
             <!-- VIEW: FINANCEIRO (Gráficos e Histórico) -->
             <div id="view-financeiro" class="admin-view hidden space-y-12">
                 <!-- Gráfico de Faturamento -->
+                <div id="finance-summary" class="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4"></div>
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <h4 class="text-xl font-bold uppercase tracking-tight italic">Desempenho Financeiro</h4>
@@ -272,7 +375,7 @@
                     <table class="w-full text-left">
                         <thead class="text-neutral-500 text-sm uppercase">
                             <tr class="border-b border-neutral-800">
-                                <th class="pb-4 w-16 text-red-600">#</th><th class="pb-4">Data</th><th class="pb-4">Cliente</th><th class="pb-4">Moto</th><th class="pb-4">Total</th><th class="pb-4">Ações</th>
+                                <th class="pb-4 w-16 text-red-600">#</th><th class="pb-4">Data</th><th class="pb-4">Cliente</th><th class="pb-4">Moto</th><th class="pb-4">Status</th><th class="pb-4">Total</th><th class="pb-4">Ações</th>
                             </tr>
                         </thead>
                         <tbody id="os-history-body" class="divide-y divide-neutral-800"></tbody>
@@ -294,13 +397,48 @@
                 <div id="picker-calendar" class="picker-calendar-custom"></div>
             </div>
             <div id="picker-step-2" class="hidden">
-                <h4 class="text-2xl font-black uppercase italic mb-1 text-center text-red-600 tracking-tighter">Escolha a Hora</h4>
+                <h4 class="text-2xl font-black uppercase italic mb-1 text-center text-red-600 tracking-tighter">Dia Selecionado</h4>
                 <p id="picked-day-display" class="text-center text-[10px] text-white uppercase font-black mb-8 tracking-[0.2em]"></p>
-                <div id="clock-grid" class="grid grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-2 scrollbar-custom"></div>
+                <div id="clock-grid" class="grid grid-cols-1 gap-3 max-h-80 overflow-y-auto pr-2 scrollbar-custom"></div>
                 <button onclick="backToCalendar()" class="w-full mt-8 text-white uppercase text-[10px] font-black tracking-[0.2em] hover:text-red-500 transition italic">← Voltar para o Calendário</button>
             </div>
         </div>
     </div>
+
+    <!-- Contato -->
+    <footer id="contato" class="bg-black border-t border-neutral-900 px-4 md:px-6 py-12">
+        <div class="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+            <div>
+                <img src="logo.png" alt="Garage Motos" class="h-16 w-auto object-contain mb-4">
+                <p class="text-neutral-400 text-sm">Excelência em serviços e peças para motos. Sua moto recebe cuidado, transparência e compromisso.</p>
+            </div>
+            <div id="servicos">
+                <h4 class="font-black uppercase italic mb-4">Serviços</h4>
+                <ul class="text-neutral-400 text-sm space-y-2 uppercase font-bold italic">
+                    <li><span class="text-red-600 mr-2">/</span> Troca de óleo</li>
+                    <li><span class="text-red-600 mr-2">/</span> Injeção eletrônica</li>
+                    <li><span class="text-red-600 mr-2">/</span> Revisão geral</li>
+                    <li><span class="text-red-600 mr-2">/</span> Motores</li>
+                    <li><span class="text-red-600 mr-2">/</span> Pinturas</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-black uppercase italic mb-4">Contato</h4>
+                <ul class="text-neutral-400 text-sm space-y-2 uppercase font-bold italic">
+                    <li><a href="https://api.whatsapp.com/send?phone=558193735372" target="_blank" class="hover:text-white transition"><span class="text-red-600 mr-2">/</span> WhatsApp</a></li>
+                    <li><a href="https://www.instagram.com/garagemotosbj" target="_blank" class="hover:text-white transition"><span class="text-red-600 mr-2">/</span> Instagram</a></li>
+                    <li><span class="text-red-600 mr-2">/</span> (81) 99373-5372</li>
+                    <li><span class="text-red-600 mr-2">/</span> R. Antonio Rodrigues, 100</li>
+                    <li><span class="text-red-600 mr-2">/</span> Edson Mororó Moura</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-black uppercase italic mb-4">Funcionamento</h4>
+                <p class="text-neutral-400 text-sm">Segunda a sexta: 07:00 às 18:00</p>
+                <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de falar com a Garage Motos." target="_blank" class="inline-block mt-4 bg-red-600 hover:bg-red-700 px-5 py-3 rounded font-black uppercase text-xs tracking-widest transition">Chamar no WhatsApp</a>
+            </div>
+        </div>
+    </footer>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
