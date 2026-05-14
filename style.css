@@ -256,10 +256,11 @@ section {
     display: flex;
     align-items: center;
     background-color: #050505;
-    background-image: url('https://images.unsplash.com/photo-1558981403-c5f91cb9c231?q=80&w=2070&auto=format&fit=crop');
+    background-image: url('img/oficina.png');
     background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
+    background-position: 75% center;
+    background-attachment: scroll;
+    background-repeat: no-repeat;
     overflow: hidden;
     padding-top: 80px;
 }
@@ -267,7 +268,7 @@ section {
 .hero-bg-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(to right, #000 20%, rgba(0,0,0,0.4) 100%);
+    background: linear-gradient(to right, #000 10%, rgba(0,0,0,0.3) 50%, transparent 100%);
     z-index: 1;
 }
 
@@ -291,7 +292,7 @@ section {
 }
 
 .hero-copy h1 {
-    font-size: clamp(2.5rem, 8vw, 6.5rem);
+    font-size: clamp(2rem, 7vw, 5.2rem);
     font-weight: 900;
     line-height: 0.9;
     text-transform: uppercase;
@@ -397,6 +398,18 @@ section {
         padding: 0.4rem 0.6rem !important;
         min-height: 2rem;
         font-size: 0.75rem !important;
+    }
+
+    .hero-showcase {
+        background-position: 82% center;
+        background-size: cover;
+        min-height: 85vh;
+        align-items: flex-end;
+        padding-bottom: 60px;
+    }
+
+    .hero-bg-overlay {
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.2) 100%) !important;
     }
 }
 

@@ -112,7 +112,9 @@ async function loginAdmin(e) {
 }
 
 async function logoutAdmin() {
-    await signOut(auth);
+    if (confirm('Tem certeza que deseja sair do painel administrativo?')) {
+        await signOut(auth);
+    }
 }
 
 function toggleMenu() {
@@ -489,7 +491,7 @@ async function downloadOSPDF(osOrId) {
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const logoData = await loadImageForPDF('logo.png');
+    const logoData = await loadImageForPDF('img/logo.png');
     const parts = os.parts || [];
     const discounts = os.discounts || [];
     const money = value => `R$ ${Number(value || 0).toFixed(2)}`;
@@ -1246,7 +1248,7 @@ async function printLowStockReport() {
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    const logoData = await loadImageForPDF('logo.png');
+    const logoData = await loadImageForPDF('img/logo.png');
     const reportDate = new Date().toLocaleDateString('pt-BR');
 
     doc.setFillColor(250, 250, 250);
