@@ -11,6 +11,11 @@ let pickerCalendar;
 let tempSelectedDate = '';
 let currentOSDiscounts = [];
 
+// Configuração de Notificação Sonora
+const notificationSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+notificationSound.loop = true; // Define o som para repetir infinitamente
+let isInitialLoad = true;
+
 // Função centralizada para gerenciar o bloqueio de rolagem (Scroll Lock)
 function updateScrollLock() {
     const isMenuOpen = !document.getElementById('main-menu')?.classList.contains('hidden');
@@ -42,6 +47,7 @@ window.applyOSDiscount = applyOSDiscount;
 window.editOS = editOS;
 window.deleteOS = deleteOS;
 window.downloadOSPDF = downloadOSPDF;
+window.stopAlarm = stopAlarm; // Torna a função de parar alarme global
 
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('calendar')) initCalendar();
@@ -119,6 +125,23 @@ function toggleAdmin() {
     panel.classList.toggle('hidden');
     updateScrollLock();
     renderAdminStock(); // Atualiza estoque na visão admin
+}
+
+function startAlarm() {
+    const alertUI = document.getElementById('new-appointment-alert');
+    if (alertUI) {
+        alertUI.classList.remove('hidden');
+        notificationSound.play().catch(e => console.log("Interação necessária para tocar som."));
+    }
+}
+
+function stopAlarm() {
+    const alertUI = document.getElementById('new-appointment-alert');
+    if (alertUI) {
+        alertUI.classList.add('hidden');
+        notificationSound.pause();
+        notificationSound.currentTime = 0; // Reseta o som para o início
+    }
 }
 
 function toggleAdminNav() {
@@ -643,6 +666,7 @@ function initCalendar() {
 
     // Sincronização em tempo real com o Firebase
     onSnapshot(collection(db, "appointments"), (snapshot) => {
+        const docChanges = snapshot.docChanges();
         appointmentRequests = [];
         const calendarEvents = [];
         snapshot.forEach((doc) => {
@@ -650,6 +674,17 @@ function initCalendar() {
             appointmentRequests.push(data);
             calendarEvents.push(data);
         });
+
+        // Tocar som se houver um novo agendamento (após carregamento inicial e se o admin estiver logado)
+        if (!isInitialLoad && auth.currentUser) {
+            docChanges.forEach(change => {
+                if (change.type === 'added' && change.doc.data().type === 'request') {
+                    startAlarm(); // Dispara o alarme visual e sonoro repetitivo
+                }
+            });
+        }
+        isInitialLoad = false;
+
         if (calendar) {
             calendar.removeAllEvents();
             calendarEvents.forEach(ev => calendar.addEvent(ev));
