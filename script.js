@@ -47,6 +47,7 @@ window.applyOSDiscount = applyOSDiscount;
 window.editOS = editOS;
 window.deleteOS = deleteOS;
 window.downloadOSPDF = downloadOSPDF;
+window.startAlarm = startAlarm; // Torna a função de início do alarme global
 window.stopAlarm = stopAlarm; // Torna a função de parar alarme global
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -677,13 +678,16 @@ function initCalendar() {
 
         // Tocar som se houver um novo agendamento (após carregamento inicial e se o admin estiver logado)
         if (!isInitialLoad && auth.currentUser) {
+            const isDashboardVisible = !document.getElementById('admin-dashboard-ui')?.classList.contains('hidden');
+            
             docChanges.forEach(change => {
-                if (change.type === 'added' && change.doc.data().type === 'request') {
+                // Dispara apenas para novos agendamentos de clientes se o painel estiver aberto
+                if (change.type === 'added' && change.doc.data().type === 'request' && isDashboardVisible) {
                     startAlarm(); // Dispara o alarme visual e sonoro repetitivo
                 }
             });
         }
-        isInitialLoad = false;
+        if (isInitialLoad && snapshot.docs.length >= 0) isInitialLoad = false;
 
         if (calendar) {
             calendar.removeAllEvents();
