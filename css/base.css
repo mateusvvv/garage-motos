@@ -1,0 +1,36 @@
+/* Estilização Customizada */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+    background: #e11d48;
+    border-radius: 10px;
+    border: 2px solid #0a0a0a;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #be123c;
+}
+
+.product-card:hover {
+    transform: translateY(-8px);
+    border-color: #e11d48;
+}
+.product-card {
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+body {
+    color-scheme: dark; 
+    background-color: #050505;
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(225, 29, 72, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(225, 29, 72, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 50%, #1a1a1a 0px, transparent 100%);
+    background-attachment: fixed;
+}
+
+section {
+

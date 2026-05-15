@@ -1,0 +1,56 @@
+/* Ajustes para Calendário Mobile */
+@media (max-width: 768px) {
+    .fc .fc-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1rem !important;
+    }
+    
+    .fc .fc-daygrid-day-frame {
+        min-height: 3.2rem; /* Reduz a altura da célula */
+    }
+    
+    .fc-daygrid-day-number {
+        font-size: 0.8rem !important;
+        padding: 0.3rem !important;
+    }
+    
+    .fc .fc-button {
+        padding: 0.4rem 0.6rem !important;
+        min-height: 2rem;
+        font-size: 0.75rem !important;
+    }
+
+    .hero-showcase {
+        min-height: 100dvh;
+        align-items: flex-end;
+        padding-bottom: 60px;
+    }
+
+    .hero-showcase::before {
+        background-image: url('../img/oficina-mobile.png');
+        background-position: 80% center;
+    }
+
+    .hero-bg-overlay {
+        background: linear-gradient(to top, rgba(0,0,0,0.9) 40%, rgba(0,0,0,0.2) 100%) !important;
+    }
+}
+
+/* Ajustes de visualização para 2 colunas de serviços no mobile */
+@media (max-width: 1024px) {
+    .service-card {
+        padding: 1.5rem 0.5rem;
+    }
+    .service-card div:first-child {
+        margin-bottom: 1rem !important;
+        padding: 0.75rem !important;
+    }
+    .service-card h3 {
+        font-size: 0.85rem;
+    }
+}
+
