@@ -302,7 +302,7 @@ section {
 }
 
 .service-card {
-    background: rgba(23, 23, 23, 0.5);
+    background: rgba(15, 15, 15, 0.8);
     border: 1px solid #1a1a1a;
     padding: 30px 20px;
     text-align: center;
@@ -311,13 +311,16 @@ section {
     text-transform: uppercase;
     font-style: italic;
     font-size: 13px;
-    transition: all 0.3s;
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    position: relative;
+    overflow: hidden;
 }
 
 .service-card:hover {
-    border-color: #e11d48;
-    background: #0a0a0a;
+    border-color: rgba(225, 29, 72, 0.5);
+    background: #050505;
     transform: translateY(-5px);
+    box-shadow: 0 10px 30px -10px rgba(225, 29, 72, 0.2);
 }
 
 .admin-tab-btn {
