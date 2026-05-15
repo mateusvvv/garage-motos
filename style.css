@@ -409,13 +409,14 @@ section {
     }
 
     .hero-showcase {
-        min-height: 100vh;
+        min-height: 100dvh;
         align-items: flex-end;
         padding-bottom: 60px;
     }
 
     .hero-showcase::before {
-        background-position: 90% center;
+        background-image: url('img/oficina-mobile.png');
+        background-position: 80% center;
     }
 
     .hero-bg-overlay {
