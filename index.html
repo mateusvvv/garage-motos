@@ -229,7 +229,7 @@
                     <p class="text-neutral-500 text-xs font-bold tracking-widest uppercase mt-2">Identifique-se para continuar</p>
                 </div>
                 <form id="login-form" class="space-y-4">
-                    <input type="email" id="login-email" placeholder="garagemotos@gmail.com" class="w-full bg-black p-4 rounded border border-neutral-700 outline-none focus:border-red-600 transition" required>
+                    <input type="email" id="login-email" placeholder="E-mail" autocomplete="off" class="w-full bg-black p-4 rounded border border-neutral-700 outline-none focus:border-red-600 transition" required>
                     <input type="password" id="login-password" placeholder="Senha" class="w-full bg-black p-4 rounded border border-neutral-700 outline-none focus:border-red-600 transition" required>
                     <button type="submit" class="w-full bg-red-600 py-3 font-black uppercase tracking-widest hover:bg-red-700 transition text-sm shadow-lg shadow-red-600/20">Entrar</button>
                 </form>
@@ -402,6 +402,7 @@
                         <button id="btn-delete-all" onclick="deleteAllProducts()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-3 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
                     </div>
                     <p id="stock-total-count" class="text-neutral-500 text-xs uppercase font-bold mt-4"></p>
+                    <p id="stock-loading-indicator" class="hidden text-neutral-500 text-[10px] uppercase font-black tracking-[0.25em] mt-2 animate-pulse">Carregando itens do estoque...</p>
                     <!-- Alterado para layout de grade com 2 colunas em telas maiores para melhor visualização -->
                     <div id="admin-stock-list" class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-neutral-800 pt-6 max-h-[500px] overflow-y-auto pr-2"></div>
                 </div>

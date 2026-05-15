@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isTeamMember() {
+      return isSignedIn()
+        && request.auth.token.email in [
+          "leonardo1412goncalves@gmail.com",
+          "garagemotos@gmail.com"
+        ];
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && request.auth.token.email == "leonardo1412goncalves@gmail.com";
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isTeamMember();
+      allow delete: if isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isTeamMember();
+      allow create: if true;
+      allow update, delete: if isTeamMember();
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+  }
+}

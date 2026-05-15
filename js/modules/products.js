@@ -3,6 +3,9 @@ import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocs } from 
 import { state } from '../core/state.js';
 import { toBase64, loadImageForPDF } from '../core/utils.js';
 
+let hasProductsLoaded = false;
+let productsLoadFailed = false;
+
 async function addProduct(e) {
     e.preventDefault();
     const id = document.getElementById('prod-id').value;
@@ -73,11 +76,14 @@ function initProductsSync() {
 }
 
 function setProductsFromSnapshot(snapshot) {
+    hasProductsLoaded = true;
+    productsLoadFailed = false;
     state.products = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
     }));
     renderShop();
+    renderAdminStock(document.getElementById('stock-search')?.value || '');
     hideLoadingScreen();
 }
 
@@ -87,7 +93,10 @@ async function loadProductsOnce(productsCol = collection(db, "products")) {
         setProductsFromSnapshot(snapshot);
     } catch (error) {
         console.error("Erro ao carregar produtos:", error);
+        hasProductsLoaded = true;
+        productsLoadFailed = true;
         renderShopError();
+        renderAdminStock(document.getElementById('stock-search')?.value || '');
         hideLoadingScreen();
     }
 }
@@ -108,7 +117,7 @@ function renderShopError() {
 
     container.innerHTML = `
         <p class="col-span-full text-center text-neutral-500 text-xs uppercase font-bold tracking-[0.2em] py-16">
-            Não foi possível carregar o estoque agora. Verifique a conexão e tente atualizar a página.
+            Não foi possível carregar o estoque agora. Verifique a conexão ou as regras de leitura da coleção products no Firebase.
         </p>
     `;
 }
@@ -262,7 +271,31 @@ function formatStockLabel(stock) {
 function renderAdminStock(searchTerm = '') {
     const container = document.getElementById('admin-stock-list');
     const totalCountElement = document.getElementById('stock-total-count');
+    const loadingIndicator = document.getElementById('stock-loading-indicator');
     if (!container) return;
+
+    if (!hasProductsLoaded) {
+        if (totalCountElement) totalCountElement.textContent = 'Total de Itens: carregando...';
+        if (loadingIndicator) loadingIndicator.classList.remove('hidden');
+        container.innerHTML = `
+            <p class="col-span-full text-center text-neutral-600 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">
+                Aguarde enquanto buscamos as imagens e os itens do estoque.
+            </p>
+        `;
+        return;
+    }
+
+    if (loadingIndicator) loadingIndicator.classList.add('hidden');
+
+    if (productsLoadFailed) {
+        if (totalCountElement) totalCountElement.textContent = 'Total de Itens: indisponível';
+        container.innerHTML = `
+            <p class="col-span-full text-center text-red-500 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">
+                Não foi possível carregar o estoque. Verifique a conexão e as permissões do Firebase.
+            </p>
+        `;
+        return;
+    }
     
     const filtered = state.products.filter(p => 
         p.name.toLowerCase().includes(searchTerm.toLowerCase())
