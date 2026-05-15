@@ -6,6 +6,19 @@ import { showAdminView } from './ui.js';
 import { renderAdminStock } from './products.js';
 import { renderAdminAppointments } from './appointments.js';
 
+function clearLoginForm() {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.reset();
+        return;
+    }
+
+    const emailInput = document.getElementById('login-email');
+    const passwordInput = document.getElementById('login-password');
+    if (emailInput) emailInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+}
+
 export async function loginAdmin(e) {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
@@ -27,6 +40,7 @@ export async function loginAdmin(e) {
 export async function logoutAdmin() {
     if (confirm('Tem certeza que deseja sair do painel administrativo?')) {
         await signOut(auth);
+        clearLoginForm();
     }
 }
 
@@ -67,6 +81,7 @@ export function initAuthObserver() {
         } else {
             dashboard.classList.add('hidden');
             loginUI.classList.remove('hidden');
+            clearLoginForm();
         }
     });
 }
