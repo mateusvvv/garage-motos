@@ -36,6 +36,7 @@ window.logoutAdmin = logoutAdmin;
 window.editProduct = editProduct;
 window.deleteProduct = deleteProduct;
 window.loadOSDraft = loadOSDraft;
+window.reserveProduct = reserveProduct;
 window.deleteOpenOS = deleteOpenOS;
 window.finalizeOS = finalizeOS;
 window.deleteAllProducts = deleteAllProducts;
@@ -1012,15 +1013,37 @@ function renderShop() {
                     <h5 class="font-bold text-xs md:text-lg mb-1 truncate uppercase">${p.name}</h5>
                     <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${parseFloat(p.price).toFixed(2)}</p>
                     ${showStock ? `<p class="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest font-bold mb-3 md:mb-4">${formatStockLabel(p.stock)}</p>` : ''}
-                    <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de comprar o produto: ${encodeURIComponent(p.name)}" 
-                       target="_blank" 
-                       class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition">
-                       Comprar
-                    </a>
+                    <button onclick="reserveProduct('${p.id}')" 
+                       class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition cursor-pointer">
+                       Reservar para Retirada
+                    </button>
                 </div>
             </div>
         `).join('');
     });
+}
+
+async function reserveProduct(productId) {
+    const product = products.find(p => p.id === productId);
+    
+    if (!product || product.stock <= 0) {
+        alert("Desculpe, este produto está sem estoque no momento.");
+        return;
+    }
+
+    try {
+        // 1. Atualiza o estoque no Firestore diminuindo 1 unidade
+        const productRef = doc(db, "products", productId);
+        await setDoc(productRef, { ...product, stock: product.stock - 1 });
+
+        // 2. Abre o WhatsApp com a mensagem de reserva
+        const message = `Olá! Gostaria de reservar o produto: ${product.name}. Entendo que o pagamento é feito na retirada e que a reserva é válida por 2 horas.`;
+        const waUrl = `https://api.whatsapp.com/send?phone=558193735372&text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank');
+    } catch (error) {
+        console.error("Erro ao processar reserva:", error);
+        alert("Houve um erro ao reservar o item. Verifique sua conexão.");
+    }
 }
 
 function formatStockLabel(stock) {
