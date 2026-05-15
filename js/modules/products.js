@@ -75,6 +75,13 @@ function initProductsSync() {
     });
 }
 
+function reloadProducts() {
+    hasProductsLoaded = false;
+    productsLoadFailed = false;
+    renderAdminStock(document.getElementById('stock-search')?.value || '');
+    return loadProductsOnce();
+}
+
 function setProductsFromSnapshot(snapshot) {
     hasProductsLoaded = true;
     productsLoadFailed = false;
@@ -196,7 +203,7 @@ function renderShop() {
             <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
                 <div class="h-40 md:h-56 bg-neutral-800 flex items-center justify-center p-2 overflow-hidden">
                     ${p.image ? 
-                        `<img src="${p.image}" class="max-h-full max-w-full object-contain" alt="${p.name}">` : 
+                        `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${p.name}">` : 
                         '<div class="text-neutral-600 font-bold uppercase tracking-widest text-[8px] md:text-xs text-center">Sem Foto</div>'
                     }
                 </div>
@@ -311,7 +318,7 @@ function renderAdminStock(searchTerm = '') {
         <div class="flex items-center justify-between p-4 border-b border-neutral-800 hover:bg-black/30 transition rounded">
             <div class="flex items-center gap-4 overflow-hidden">
                 <div class="w-12 h-12 flex-shrink-0 bg-neutral-800 rounded flex items-center justify-center overflow-hidden">
-                    ${p.image ? `<img src="${p.image}" class="max-h-full max-w-full object-contain">` : ''}
+                    ${p.image ? `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain">` : ''}
                 </div>
                 <div class="truncate">
                     <p class="font-bold text-xs md:text-sm uppercase truncate">${p.name}</p>
@@ -430,5 +437,5 @@ async function printLowStockReport() {
 }
 
 
-export { addProduct, initProductsSync, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, reserveProduct, decrementProductsStock, formatStockLabel, renderAdminStock, printLowStockReport };
+export { addProduct, initProductsSync, reloadProducts, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, reserveProduct, decrementProductsStock, formatStockLabel, renderAdminStock, printLowStockReport };
 

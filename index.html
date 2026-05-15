@@ -398,6 +398,7 @@
                     <!-- Barra de Busca e Botão de Impressão -->
                     <div class="mt-8 flex flex-col md:flex-row gap-4">
                         <input type="text" id="stock-search" placeholder="Buscar no estoque..." class="flex-1 bg-black p-3 rounded border border-neutral-700 text-sm outline-none focus:border-red-600 transition">
+                        <button onclick="reloadProducts()" class="bg-neutral-800 hover:bg-white hover:text-black px-4 py-3 rounded text-[10px] font-bold uppercase transition italic border border-neutral-700">Recarregar Estoque</button>
                         <button onclick="printLowStockReport()" class="bg-neutral-800 hover:bg-red-600 px-4 py-3 rounded text-[10px] font-bold uppercase transition italic border border-neutral-700">Lista de Compras</button>
                         <button id="btn-delete-all" onclick="deleteAllProducts()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-3 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
                     </div>
