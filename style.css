@@ -416,5 +416,19 @@ section {
     }
 }
 
+/* Ajustes de visualização para 2 colunas de serviços no mobile */
+@media (max-width: 1024px) {
+    .service-card {
+        padding: 1.5rem 0.5rem;
+    }
+    .service-card div:first-child {
+        margin-bottom: 1rem !important;
+        padding: 0.75rem !important;
+    }
+    .service-card h3 {
+        font-size: 0.85rem;
+    }
+}
+
 .delay-100 { animation-delay: 0.1s; }
 .delay-200 { animation-delay: 0.2s; }
