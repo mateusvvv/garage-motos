@@ -1,10 +1,11 @@
-import { auth, db } from '../../firebase-config.js';
+import { auth, db, firebaseConfig } from '../../firebase-config.js';
 import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { toBase64, loadImageForPDF } from '../core/utils.js';
 
 let hasProductsLoaded = false;
 let productsLoadFailed = false;
+const PRODUCTS_LOAD_TIMEOUT = 8000;
 
 async function addProduct(e) {
     e.preventDefault();
@@ -96,16 +97,74 @@ function setProductsFromSnapshot(snapshot) {
 
 async function loadProductsOnce(productsCol = collection(db, "products")) {
     try {
-        const snapshot = await getDocs(productsCol);
+        const snapshot = await withTimeout(getDocs(productsCol), PRODUCTS_LOAD_TIMEOUT);
         setProductsFromSnapshot(snapshot);
     } catch (error) {
-        console.error("Erro ao carregar produtos:", error);
+        console.error("Erro ao carregar produtos pelo SDK:", error);
+        await loadProductsFromRest();
+    }
+}
+
+function withTimeout(promise, timeoutMs) {
+    return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Tempo limite ao carregar produtos.')), timeoutMs);
+        })
+    ]);
+}
+
+async function loadProductsFromRest() {
+    try {
+        const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/products?key=${firebaseConfig.apiKey}`;
+        const headers = {};
+
+        if (auth.currentUser) {
+            headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
+        }
+
+        const response = await fetch(url, { headers });
+        if (!response.ok) {
+            throw new Error(`REST ${response.status}: ${await response.text()}`);
+        }
+
+        const payload = await response.json();
+        state.products = (payload.documents || []).map(doc => ({
+            id: doc.name.split('/').pop(),
+            ...parseFirestoreFields(doc.fields || {})
+        }));
+        hasProductsLoaded = true;
+        productsLoadFailed = false;
+        renderShop();
+        renderAdminStock(document.getElementById('stock-search')?.value || '');
+        hideLoadingScreen();
+    } catch (error) {
+        console.error("Erro ao carregar produtos pelo fallback REST:", error);
         hasProductsLoaded = true;
         productsLoadFailed = true;
         renderShopError();
         renderAdminStock(document.getElementById('stock-search')?.value || '');
         hideLoadingScreen();
     }
+}
+
+function parseFirestoreFields(fields) {
+    return Object.entries(fields).reduce((acc, [key, value]) => {
+        acc[key] = parseFirestoreValue(value);
+        return acc;
+    }, {});
+}
+
+function parseFirestoreValue(value) {
+    if ('stringValue' in value) return value.stringValue;
+    if ('integerValue' in value) return Number(value.integerValue);
+    if ('doubleValue' in value) return Number(value.doubleValue);
+    if ('booleanValue' in value) return Boolean(value.booleanValue);
+    if ('nullValue' in value) return null;
+    if ('timestampValue' in value) return value.timestampValue;
+    if ('arrayValue' in value) return (value.arrayValue.values || []).map(parseFirestoreValue);
+    if ('mapValue' in value) return parseFirestoreFields(value.mapValue.fields || {});
+    return '';
 }
 
 function hideLoadingScreen() {
