@@ -1,6 +1,6 @@
-import { initProductsSync, addProduct, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderAdminStock, reserveProduct, printLowStockReport } from './modules/products.js';
+import { initProductsSync, addProduct, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, renderAdminStock, reserveProduct, printLowStockReport } from './modules/products.js';
 import { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments } from './modules/appointments.js';
-import { addPartRow, updateDiscountTargets, applyOSDiscount, saveOSDraft, finalizeOS, loadOSDraft, deleteOpenOS, clearOSHistory, editOS, deleteOS, downloadOSPDF, resetOSForm, renderHistory, renderOpenOrders } from './modules/orders.js';
+import { addPartRow, updateDiscountTargets, applyOSDiscount, saveOSDraft, finalizeOS, loadOSDraft, deleteOpenOS, clearOSHistory, editOS, deleteOS, downloadOSPDF, resetOSForm, renderHistory, renderOpenOrders, renderClosedOrders } from './modules/orders.js';
 import { renderChart, updateRevenueFilterOptions } from './modules/finance.js';
 import { loginAdmin, logoutAdmin, initAuthObserver } from './modules/auth.js';
 import { toggleMenu, toggleAdmin, toggleShop, toggleAdminNav, showAdminView, startAlarm, stopAlarm } from './modules/ui.js';
@@ -60,12 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
     addSafeListener('revenue-filter', 'change', renderChart);
     addSafeListener('login-form', 'submit', loginAdmin);
     addSafeListener('stock-search', 'input', (e) => renderAdminStock(e.target.value));
+    addSafeListener('shop-search', 'input', renderShop);
     addSafeListener('os-cancel-edit', 'click', resetOSForm);
     addSafeListener('prod-cancel-edit', 'click', resetProductForm);
 
     addPartRow();
     renderHistory();
     renderOpenOrders();
+    renderClosedOrders();
     updateRevenueFilterOptions();
     renderChart();
     initAuthObserver();

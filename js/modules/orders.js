@@ -1,24 +1,98 @@
 import { state } from '../core/state.js';
 import { loadImageForPDF } from '../core/utils.js';
-import { renderAdminStock } from './products.js';
+import { decrementProductsStock, renderAdminStock } from './products.js';
 import { renderChart, updateRevenueFilterOptions } from './finance.js';
+import { showAdminView } from './ui.js';
 
-function addPartRow(name = '', price = '') {
+function escapeHtml(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function addPartRow(name = '', price = '', productId = '') {
     const container = document.getElementById('os-parts-container');
     if (!container) return;
 
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center os-part-row';
+    div.className = 'relative flex gap-2 items-center os-part-row';
+    if (productId) div.dataset.productId = productId;
     div.innerHTML = `
-        <input type="text" placeholder="Nome da Peça" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-name" value="${name}" oninput="updateDiscountTargets()">
-        <input type="number" step="0.01" placeholder="R$" class="w-20 md:w-24 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-price" value="${price}">
+        <input type="text" placeholder="Nome da Peça" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-name" value="${escapeHtml(name)}" autocomplete="off">
+        <input type="number" step="0.01" placeholder="R$" class="w-20 md:w-24 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-price" value="${escapeHtml(price)}">
         <button type="button" onclick="this.parentElement.remove(); updateDiscountTargets();" class="text-neutral-600 hover:text-red-500 p-1">✕</button>
+        <div class="part-suggestions hidden absolute left-0 right-10 top-full mt-1 z-20 bg-black border border-neutral-800 rounded-lg shadow-2xl max-h-56 overflow-y-auto"></div>
     `;
     container.appendChild(div);
+    bindPartAutocomplete(div);
     updateDiscountTargets();
 }
 
 window.updateDiscountTargets = updateDiscountTargets;
+
+function bindPartAutocomplete(row) {
+    const nameInput = row.querySelector('.part-name');
+    const priceInput = row.querySelector('.part-price');
+    const suggestions = row.querySelector('.part-suggestions');
+    if (!nameInput || !priceInput || !suggestions) return;
+
+    const hideSuggestions = () => suggestions.classList.add('hidden');
+    const selectProduct = (product) => {
+        row.dataset.productId = product.id;
+        nameInput.value = product.name;
+        priceInput.value = Number(product.price || 0).toFixed(2);
+        hideSuggestions();
+        updateDiscountTargets();
+    };
+
+    const renderSuggestions = () => {
+        const term = nameInput.value.trim().toLowerCase();
+        row.dataset.productId = '';
+        updateDiscountTargets();
+
+        if (!term) {
+            hideSuggestions();
+            return;
+        }
+
+        const matches = state.products
+            .filter(product => String(product.name || '').toLowerCase().startsWith(term))
+            .slice(0, 8);
+
+        if (matches.length === 0) {
+            hideSuggestions();
+            return;
+        }
+
+        suggestions.innerHTML = matches.map(product => `
+            <button type="button" data-product-id="${product.id}" class="w-full text-left px-3 py-2 hover:bg-neutral-900 border-b border-neutral-900 last:border-b-0">
+                <span class="block text-xs font-black uppercase text-white">${escapeHtml(product.name)}</span>
+                <span class="block text-[10px] uppercase tracking-widest text-neutral-500">Qtd: ${Number.parseInt(product.stock, 10) || 0} | R$ ${Number(product.price || 0).toFixed(2)}</span>
+            </button>
+        `).join('');
+        suggestions.classList.remove('hidden');
+    };
+
+    nameInput.addEventListener('input', renderSuggestions);
+    nameInput.addEventListener('focus', renderSuggestions);
+    nameInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            const exactMatch = state.products.find(product => String(product.name || '').toLowerCase() === nameInput.value.trim().toLowerCase());
+            row.dataset.productId = exactMatch?.id || '';
+            hideSuggestions();
+            updateDiscountTargets();
+        }, 150);
+    });
+    suggestions.addEventListener('mousedown', (event) => {
+        const button = event.target.closest('[data-product-id]');
+        if (!button) return;
+        const product = state.products.find(item => item.id === button.dataset.productId);
+        if (product) selectProduct(product);
+    });
+}
 
 function updateDiscountTargets() {
     const targetSelect = document.getElementById('os-discount-target');
@@ -103,8 +177,10 @@ function getOSFormData() {
     partRows.forEach(row => {
         const name = row.querySelector('.part-name').value;
         const price = parseFloat(row.querySelector('.part-price').value) || 0;
+        const exactProduct = state.products.find(product => String(product.name || '').toLowerCase() === name.trim().toLowerCase());
+        const productId = row.dataset.productId || exactProduct?.id || '';
         if (name || price > 0) {
-            parts.push({ name, price });
+            parts.push({ name, price, productId });
             partsTotal += price;
         }
     });
@@ -120,7 +196,7 @@ function getOSFormData() {
         parts,
         partsTotal,
         total: labor + partsTotal,
-        discounts: [...currentOSDiscounts],
+        discounts: [...state.currentOSDiscounts],
         discountTotal: state.currentOSDiscounts.reduce((sum, d) => sum + Number(d.amount || 0), 0)
     };
 }
@@ -148,7 +224,7 @@ function saveOSDraft(e) {
 }
 
 // ETAPA 2: Finalizar O.S
-function finalizeOS() {
+async function finalizeOS() {
     const data = getOSFormData();
     if (!data.client) { alert("Informe o cliente para finalizar."); return; }
 
@@ -169,10 +245,19 @@ function finalizeOS() {
         state.serviceOrders.push(osData);
     }
 
+    downloadOSPDF(osData);
+
+    if (!existingOS) {
+        try {
+            await decrementProductsStock(osData.parts);
+        } catch (error) {
+            console.error('Erro ao dar baixa no estoque:', error);
+            alert('A O.S foi finalizada, mas houve erro ao dar baixa no estoque. Verifique sua conexão.');
+        }
+    }
+
     // Remove dos rascunhos se estiver lá
     state.openOrders = state.openOrders.filter(o => o.id !== data.id);
-    
-    downloadOSPDF(osData);
     saveAndRefresh();
     resetOSForm();
 }
@@ -349,6 +434,7 @@ function saveAndRefresh() {
     
     renderHistory();
     renderOpenOrders();
+    renderClosedOrders();
     renderAdminStock();
     updateRevenueFilterOptions();
     renderChart();
@@ -374,6 +460,32 @@ function renderHistory() {
             </td>
         </tr>
     `).join('');
+}
+
+function renderClosedOrders() {
+    const list = document.getElementById('closed-os-list');
+    const countLabel = document.getElementById('closed-os-count');
+    if (!list) return;
+
+    if (countLabel) countLabel.textContent = `${state.serviceOrders.length} ordens finalizadas`;
+
+    const ordered = [...state.serviceOrders].sort((a, b) => (Number(b.osNumber) || b.id) - (Number(a.osNumber) || a.id));
+    list.innerHTML = ordered.map((os, index) => `
+        <div class="bg-black border border-neutral-800 p-4 rounded-xl flex flex-col gap-3 animate-fade-in">
+            <div class="flex justify-between items-start gap-3">
+                <div class="min-w-0">
+                    <p class="text-red-600 font-black text-[9px] uppercase italic tracking-widest mb-1">O.S #${formatOSNumber(os, index)}</p>
+                    <h5 class="font-bold text-sm uppercase truncate text-white">${os.client || 'Sem Nome'}</h5>
+                    <p class="text-[10px] text-neutral-500 uppercase italic truncate">${os.bike || 'Sem Moto'} | ${os.date || ''}</p>
+                </div>
+                <p class="text-white font-black text-sm whitespace-nowrap">R$ ${Number(os.total || 0).toFixed(2)}</p>
+            </div>
+            <div class="flex gap-2 border-t border-neutral-900 pt-3">
+                <button onclick="downloadOSPDF(${os.id})" class="flex-1 bg-neutral-800 py-2 rounded text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition">Baixar PDF</button>
+                <button onclick="editOS(${os.id})" class="flex-1 bg-neutral-900 py-2 rounded text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition">Editar</button>
+            </div>
+        </div>
+    `).join('') || '<p class="col-span-full text-center text-neutral-600 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">Nenhuma O.S finalizada</p>';
 }
 
 function renderOpenOrders() {
@@ -416,7 +528,7 @@ function loadOSDraft(id) {
     
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
-    os.parts.forEach(p => addPartRow(p.name, p.price));
+    os.parts.forEach(p => addPartRow(p.name, p.price, p.productId));
     if (os.parts.length === 0) addPartRow();
     state.currentOSDiscounts = [...(os.discounts || [])];
     
@@ -437,7 +549,7 @@ function editOS(id) {
     
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
-    os.parts.forEach(p => addPartRow(p.name, p.price));
+    os.parts.forEach(p => addPartRow(p.name, p.price, p.productId));
     if (os.parts.length === 0) addPartRow();
     state.currentOSDiscounts = [...(os.discounts || [])];
     
@@ -495,4 +607,4 @@ function deleteOpenOS(id) {
 }
 
 
-export { addPartRow, updateDiscountTargets, applyOSDiscount, getOSFormData, saveOSDraft, finalizeOS, getNextOSNumber, formatOSNumber, downloadOSPDF, saveAndRefresh, renderHistory, renderOpenOrders, loadOSDraft, editOS, resetOSForm, deleteOS, clearOSHistory, deleteOpenOS };
+export { addPartRow, updateDiscountTargets, applyOSDiscount, getOSFormData, saveOSDraft, finalizeOS, getNextOSNumber, formatOSNumber, downloadOSPDF, saveAndRefresh, renderHistory, renderOpenOrders, renderClosedOrders, loadOSDraft, editOS, resetOSForm, deleteOS, clearOSHistory, deleteOpenOS };

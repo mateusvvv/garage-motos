@@ -1,5 +1,5 @@
 import { auth, db } from '../../firebase-config.js';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { toBase64, loadImageForPDF } from '../core/utils.js';
 
@@ -53,24 +53,64 @@ async function addProduct(e) {
 
 function initProductsSync() {
     const productsCol = collection(db, "products");
+    let productsLoaded = false;
+
+    const fallbackTimer = setTimeout(() => {
+        if (!productsLoaded) loadProductsOnce(productsCol);
+    }, 6000);
+
     onSnapshot(productsCol, (snapshot) => {
-        state.products = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        renderShop();
-
-        // Ocultar tela de carregamento se ela existir (página pecas.html)
-        const loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) {
-            loadingScreen.classList.add('opacity-0');
-            setTimeout(() => {
-                loadingScreen.classList.add('hidden');
-            }, 500);
-        }
-
+        productsLoaded = true;
+        clearTimeout(fallbackTimer);
+        setProductsFromSnapshot(snapshot);
         if (auth.currentUser) renderAdminStock();
+    }, async (error) => {
+        productsLoaded = true;
+        clearTimeout(fallbackTimer);
+        console.error("Erro ao sincronizar produtos em tempo real:", error);
+        await loadProductsOnce(productsCol);
     });
+}
+
+function setProductsFromSnapshot(snapshot) {
+    state.products = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+    }));
+    renderShop();
+    hideLoadingScreen();
+}
+
+async function loadProductsOnce(productsCol = collection(db, "products")) {
+    try {
+        const snapshot = await getDocs(productsCol);
+        setProductsFromSnapshot(snapshot);
+    } catch (error) {
+        console.error("Erro ao carregar produtos:", error);
+        renderShopError();
+        hideLoadingScreen();
+    }
+}
+
+function hideLoadingScreen() {
+    const loadingScreen = document.getElementById('loading-screen');
+    if (!loadingScreen) return;
+
+    loadingScreen.classList.add('opacity-0');
+    setTimeout(() => {
+        loadingScreen.classList.add('hidden');
+    }, 500);
+}
+
+function renderShopError() {
+    const container = document.getElementById('full-shop-container');
+    if (!container) return;
+
+    container.innerHTML = `
+        <p class="col-span-full text-center text-neutral-500 text-xs uppercase font-bold tracking-[0.2em] py-16">
+            Não foi possível carregar o estoque agora. Verifique a conexão e tente atualizar a página.
+        </p>
+    `;
 }
 
 function editProduct(id) {
@@ -125,6 +165,8 @@ function resetProductForm() {
 
 
 function renderShop() {
+    const searchInput = document.getElementById('shop-search');
+    const searchTerm = searchInput?.value.trim().toLowerCase() || '';
     const containers = [
         { el: document.getElementById('shop-container'), limit: 4, showStock: false },
         { el: document.getElementById('full-shop-container'), limit: 100, showStock: true }
@@ -132,7 +174,16 @@ function renderShop() {
 
     containers.forEach(({ el, limit, showStock }) => {
         if (!el) return;
-        el.innerHTML = state.products.slice(0, limit).map(p => `
+        const products = state.products
+            .filter(p => {
+                if (!showStock || !searchTerm) return true;
+                const name = String(p.name || '').toLowerCase();
+                const location = String(p.location || '').toLowerCase();
+                return name.includes(searchTerm) || location.includes(searchTerm);
+            })
+            .slice(0, limit);
+
+        el.innerHTML = products.map(p => `
             <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
                 <div class="h-40 md:h-56 bg-neutral-800 flex items-center justify-center p-2 overflow-hidden">
                     ${p.image ? 
@@ -150,7 +201,11 @@ function renderShop() {
                     </button>
                 </div>
             </div>
-        `).join('');
+        `).join('') || `
+            <p class="col-span-full text-center text-neutral-500 text-xs uppercase font-bold tracking-[0.2em] py-16">
+                ${searchTerm ? 'Nenhum item encontrado para essa busca.' : 'Nenhum item cadastrado no estoque.'}
+            </p>
+        `;
     });
 }
 
@@ -175,6 +230,28 @@ async function reserveProduct(productId) {
         console.error("Erro ao processar reserva:", error);
         alert("Houve um erro ao reservar o item. Verifique sua conexão.");
     }
+}
+
+async function decrementProductsStock(parts = []) {
+    const usageByProduct = parts.reduce((acc, part) => {
+        if (!part.productId) return acc;
+        acc[part.productId] = (acc[part.productId] || 0) + 1;
+        return acc;
+    }, {});
+
+    const productIds = Object.keys(usageByProduct);
+    if (productIds.length === 0) return;
+
+    await Promise.all(productIds.map(async (productId) => {
+        const product = state.products.find(p => p.id === productId);
+        if (!product) return;
+
+        const quantityUsed = usageByProduct[productId];
+        const currentStock = Number.parseInt(product.stock, 10) || 0;
+        const nextStock = Math.max(currentStock - quantityUsed, 0);
+        const { id, ...productData } = product;
+        await setDoc(doc(db, "products", productId), { ...productData, stock: nextStock });
+    }));
 }
 
 function formatStockLabel(stock) {
@@ -320,5 +397,5 @@ async function printLowStockReport() {
 }
 
 
-export { addProduct, initProductsSync, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, reserveProduct, formatStockLabel, renderAdminStock, printLowStockReport };
+export { addProduct, initProductsSync, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, reserveProduct, decrementProductsStock, formatStockLabel, renderAdminStock, printLowStockReport };
 

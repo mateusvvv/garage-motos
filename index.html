@@ -19,7 +19,7 @@
                 <div class="flex flex-wrap items-center justify-center gap-4 md:gap-8">
                     <span class="top-info">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2m6-2a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
-                        Segunda a Sexta: 07h às 18h
+                        Segunda a Sexta: 07h às 17h30
                     </span>
                     <a href="https://maps.app.goo.gl/y99tPztZk2ePjuwN8" target="_blank" class="top-info hover:text-red-600 transition">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.4 7-11a7 7 0 1 0-14 0c0 6.6 7 11 7 11Z"/><path d="M12 10.5h.01"/></svg>
@@ -185,7 +185,7 @@
         <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16">
             <div>
                 <h3 class="text-4xl font-black uppercase italic mb-2">Solicite seu <span class="text-red-600">Dia</span></h3>
-                <p class="text-white text-xs uppercase tracking-widest mb-8 italic font-bold">Funcionamento: Segunda a Sexta — 07:00 às 18:00</p>
+                <p class="text-white text-xs uppercase tracking-widest mb-8 italic font-bold">Funcionamento: Segunda a Sexta — 07:00 às 17:30</p>
                 <form id="appointment-form" class="space-y-6">
                     <input type="text" id="client-name" placeholder="Nome Completo" class="w-full bg-black border border-neutral-700 p-4 rounded focus:border-red-600 outline-none transition" required>
                     <input type="tel" id="client-phone" placeholder="Telefone / WhatsApp" class="w-full bg-black border border-neutral-700 p-4 rounded focus:border-red-600 outline-none transition" required>
@@ -344,6 +344,15 @@
                     <div id="open-os-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
                 </div>
 
+                <!-- Ordens finalizadas -->
+                <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
+                    <h4 class="text-xl font-bold mb-2 flex items-center gap-2 uppercase tracking-tight">
+                        <span class="w-2 h-6 bg-red-600 block"></span> O.S Finalizadas
+                    </h4>
+                    <p id="closed-os-count" class="text-xs text-neutral-500 uppercase font-bold mb-6">Histórico de ordens concluídas</p>
+                    <div id="closed-os-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+
                 <!-- Bloqueio de Agenda -->
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
                     <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight">
@@ -488,7 +497,7 @@
             </div>
             <div>
                 <h4 class="font-black uppercase italic mb-4">Funcionamento</h4>
-                <p class="text-neutral-400 text-sm">Segunda a sexta: 07:00 às 18:00</p>
+                <p class="text-neutral-400 text-sm">Segunda a sexta: 07:00 às 17:30</p>
                 <a href="https://api.whatsapp.com/send?phone=558193735372&text=Olá! Gostaria de falar com a Garage Motos." target="_blank" class="inline-block mt-4 bg-red-600 hover:bg-red-700 px-5 py-3 rounded font-black uppercase text-xs tracking-widest transition">Chamar no WhatsApp</a>
             </div>
         </div>
