@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-config.js';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+import { collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
 // Gerenciamento de Estado Global (LocalStorage)
 let products = []; // Agora sincronizado via Firebase
@@ -10,6 +10,7 @@ let appointmentRequests = []; // Sincronizado em tempo real com o Firebase
 let pickerCalendar;
 let tempSelectedDate = '';
 let currentOSDiscounts = [];
+let currentUserRole = 'collaborator'; // Valor padrão de segurança
 
 // Configuração de Notificação Sonora
 const notificationSound = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
@@ -38,6 +39,7 @@ window.deleteProduct = deleteProduct;
 window.loadOSDraft = loadOSDraft;
 window.reserveProduct = reserveProduct;
 window.deleteOpenOS = deleteOpenOS;
+window.clearOSHistory = clearOSHistory;
 window.finalizeOS = finalizeOS;
 window.deleteAllProducts = deleteAllProducts;
 window.deleteAppointment = deleteAppointment;
@@ -81,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderChart(); // Agora com verificação interna de existência
 
     // Observador de estado de autenticação
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
         const dashboard = document.getElementById('admin-dashboard-ui');
         const loginUI = document.getElementById('admin-login-ui');
         
@@ -89,6 +91,32 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!dashboard || !loginUI) return;
 
         if (user) {
+            // Definição de Cargo baseada no e-mail fornecido
+            if (user.email === 'leonardo1412goncalves@gmail.com') {
+                currentUserRole = 'admin';
+            } else if (user.email === 'garagemotos@gmail.com') {
+                currentUserRole = 'collaborator';
+            } else {
+                // Tenta buscar no Firestore para outros usuários, mas não desloga em caso de erro
+                try {
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    currentUserRole = userDoc.exists() ? userDoc.data().role : 'collaborator';
+                } catch (e) {
+                    console.warn("Firestore inacessível, definindo como colaborador por padrão.");
+                    currentUserRole = 'collaborator';
+                }
+            }
+
+            // Atualiza a label de perfil no topo do painel
+            const roleLabel = document.getElementById('admin-role-label');
+            if (roleLabel) {
+                roleLabel.textContent = `Perfil: ${currentUserRole === 'admin' ? 'Administrador' : 'Funcionário'}`;
+            }
+
+            // Gerencia visibilidade do botão "Remover Todos" no estoque
+            const btnDeleteAll = document.getElementById('btn-delete-all');
+            if (btnDeleteAll) btnDeleteAll.style.display = (currentUserRole === 'admin') ? 'block' : 'none';
+
             dashboard.classList.remove('hidden');
             loginUI.classList.add('hidden');
             renderAdminStock();
@@ -108,7 +136,14 @@ async function loginAdmin(e) {
     try {
         await signInWithEmailAndPassword(auth, email, pass);
     } catch (error) {
-        alert('Acesso negado: Credenciais inválidas.');
+        console.error("Erro de login:", error.code);
+        if (error.code === 'auth/user-not-found') {
+            alert('Acesso negado: Este e-mail não foi cadastrado no Firebase.');
+        } else if (error.code === 'auth/wrong-password') {
+            alert('Acesso negado: Senha incorreta.');
+        } else {
+            alert('Acesso negado: Credenciais inválidas ou erro de conexão.');
+        }
     }
 }
 
@@ -161,6 +196,16 @@ function showAdminView(viewName) {
         'financeiro': 'FINANCEIRO'
     };
 
+    // Restrição de acesso à área financeira para colaboradores
+    if (viewName === 'financeiro' && currentUserRole === 'collaborator') {
+        alert("Acesso restrito: Apenas administradores podem visualizar a área financeira.");
+        return;
+    }
+
+    // Esconde/Mostra tabs baseado no cargo
+    const financeBtn = document.getElementById('btn-tab-financeiro');
+    if (financeBtn) financeBtn.style.display = (currentUserRole === 'admin') ? 'flex' : 'none';
+
     // Esconde todas as views
     document.querySelectorAll('.admin-view').forEach(v => v.classList.add('hidden'));
     // Remove classe ativa de todos os botões
@@ -193,6 +238,7 @@ async function addProduct(e) {
     const name = document.getElementById('prod-name').value;
     const price = document.getElementById('prod-price').value;
     const stock = document.getElementById('prod-stock').value;
+    const location = document.getElementById('prod-location').value;
     const imgFile = document.getElementById('prod-image').files[0];
 
     let imgBase64 = '';
@@ -210,7 +256,8 @@ async function addProduct(e) {
         name,
         price: parseFloat(price),
         stock: parseInt(stock),
-        image: imgBase64 || ''
+        image: imgBase64 || '',
+        location: location || ''
     };
 
     try {
@@ -263,6 +310,7 @@ function editProduct(id) {
     document.getElementById('prod-name').value = p.name;
     document.getElementById('prod-price').value = p.price;
     document.getElementById('prod-stock').value = p.stock;
+    document.getElementById('prod-location').value = p.location || '';
     
     document.querySelector('#product-form button[type="submit"]').textContent = 'Atualizar Item';
     document.getElementById('prod-cancel-edit').classList.remove('hidden');
@@ -275,6 +323,11 @@ async function deleteProduct(id) {
 }
 
 async function deleteAllProducts() {
+    if (currentUserRole !== 'admin') {
+        alert("Acesso negado: Apenas administradores podem remover todos os itens do estoque.");
+        return;
+    }
+
     if (products.length === 0) {
         alert('O estoque já está vazio.');
         return;
@@ -1168,6 +1221,23 @@ function deleteOS(id) {
     saveAndRefresh();
 }
 
+function clearOSHistory() {
+    if (currentUserRole !== 'admin') {
+        alert('Ação negada: Apenas administradores podem limpar o histórico.');
+        return;
+    }
+
+    if (serviceOrders.length === 0) {
+        alert('O histórico já está vazio.');
+        return;
+    }
+
+    if (confirm(`Atenção: Você está prestes a apagar permanentemente todas as ${serviceOrders.length} ordens de serviço do histórico. Esta ação não pode ser desfeita. Deseja continuar?`)) {
+        serviceOrders = [];
+        saveAndRefresh();
+    }
+}
+
 function deleteOpenOS(id) {
     if (!confirm('Deseja descartar este rascunho?')) return;
     openOrders = openOrders.filter(o => o.id !== id);
@@ -1241,6 +1311,8 @@ function renderAdminStock(searchTerm = '') {
         totalCountElement.textContent = `Total de Itens: ${filtered.length}`;
     }
 
+    const isAdmin = currentUserRole === 'admin';
+
     container.innerHTML = filtered.map(p => `
         <div class="flex items-center justify-between p-4 border-b border-neutral-800 hover:bg-black/30 transition rounded">
             <div class="flex items-center gap-4 overflow-hidden">
@@ -1249,13 +1321,15 @@ function renderAdminStock(searchTerm = '') {
                 </div>
                 <div class="truncate">
                     <p class="font-bold text-xs md:text-sm uppercase truncate">${p.name}</p>
-                    <p class="text-[11px] md:text-xs text-neutral-500 uppercase tracking-tighter">Qtd: ${p.stock} | R$ ${parseFloat(p.price).toFixed(2)}</p>
+                    <p class="text-[11px] md:text-xs text-neutral-500 uppercase tracking-tighter">Qtd: ${p.stock} | R$ ${parseFloat(p.price).toFixed(2)} ${p.location ? `| Loc: ${p.location}` : ''}</p>
                 </div>
             </div>
-            <div class="flex gap-3 ml-2">
-                <button onclick="editProduct('${p.id}')" class="text-blue-500 hover:text-blue-400 text-xs font-black uppercase italic">Editar</button>
-                <button onclick="deleteProduct('${p.id}')" class="text-neutral-600 hover:text-red-600 text-xs font-black uppercase italic">Excluir</button>
-            </div>
+            ${isAdmin ? `
+                <div class="flex gap-3 ml-2">
+                    <button onclick="editProduct('${p.id}')" class="text-blue-500 hover:text-blue-400 text-xs font-black uppercase italic">Editar</button>
+                    <button onclick="deleteProduct('${p.id}')" class="text-neutral-600 hover:text-red-600 text-xs font-black uppercase italic">Excluir</button>
+                </div>
+            ` : ''}
         </div>
     `).join('') || '<p class="text-center text-neutral-600 text-xs uppercase font-bold py-4">Estoque Vazio</p>';
 }
@@ -1318,6 +1392,7 @@ async function printLowStockReport() {
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
     doc.text('PRODUTO', 20, 103);
+    doc.text('LOCALIZACAO', 80, 103);
     doc.text('QTD', 140, 103);
     doc.text('VALOR UN.', 188, 103, { align: 'right' });
     
@@ -1335,6 +1410,12 @@ async function printLowStockReport() {
         doc.setFont(undefined, 'normal');
         doc.setFontSize(10);
         doc.text(nameLines, 20, y);
+        
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text(String(item.location || 'N/I').toUpperCase(), 80, y);
+        
+        doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'bold');
         doc.text(String(item.stock), 144, y, { align: 'center' });
         doc.text(`R$ ${parseFloat(item.price).toFixed(2)}`, 188, y, { align: 'right' });

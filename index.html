@@ -229,7 +229,7 @@
                     <p class="text-neutral-500 text-xs font-bold tracking-widest uppercase mt-2">Identifique-se para continuar</p>
                 </div>
                 <form id="login-form" class="space-y-4">
-                    <input type="email" id="login-email" placeholder="E-mail" class="w-full bg-black p-4 rounded border border-neutral-700 outline-none focus:border-red-600 transition" required>
+                    <input type="email" id="login-email" placeholder="garagemotos@gmail.com" class="w-full bg-black p-4 rounded border border-neutral-700 outline-none focus:border-red-600 transition" required>
                     <input type="password" id="login-password" placeholder="Senha" class="w-full bg-black p-4 rounded border border-neutral-700 outline-none focus:border-red-600 transition" required>
                     <button type="submit" class="w-full bg-red-600 py-3 font-black uppercase tracking-widest hover:bg-red-700 transition text-sm shadow-lg shadow-red-600/20">Entrar</button>
                 </form>
@@ -242,7 +242,7 @@
             <div class="flex justify-between items-center mb-12 border-b border-neutral-800 pb-6 gap-4">
                 <div>
                     <h2 class="text-lg sm:text-2xl md:text-3xl font-black italic text-red-600 uppercase leading-tight">Dashboard <span id="admin-view-title" class="text-white">GESTÃO</span></h2>
-                    <p id="admin-role-label" class="text-[10px] text-neutral-500 uppercase tracking-widest font-bold mt-2">Perfil: administrador</p>
+                    <p id="admin-role-label" class="text-[10px] text-white uppercase tracking-widest font-bold mt-2">Perfil: administrador</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <!-- Este é o botão de Logout -->
@@ -387,7 +387,7 @@
                     <div class="mt-8 flex flex-col md:flex-row gap-4">
                         <input type="text" id="stock-search" placeholder="Buscar no estoque..." class="flex-1 bg-black p-3 rounded border border-neutral-700 text-sm outline-none focus:border-red-600 transition">
                         <button onclick="printLowStockReport()" class="bg-neutral-800 hover:bg-red-600 px-4 py-3 rounded text-[10px] font-bold uppercase transition italic border border-neutral-700">Lista de Compras</button>
-                        <button onclick="deleteAllProducts()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-3 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
+                        <button id="btn-delete-all" onclick="deleteAllProducts()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-3 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
                     </div>
                     <p id="stock-total-count" class="text-neutral-500 text-xs uppercase font-bold mt-4"></p>
                     <!-- Alterado para layout de grade com 2 colunas em telas maiores para melhor visualização -->
@@ -413,7 +413,10 @@
 
                 <!-- Histórico O.S -->
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
-                <h4 class="text-xl font-bold mb-6 uppercase tracking-tight italic">Histórico de Ordens</h4>
+                <div class="flex justify-between items-center mb-6">
+                    <h4 class="text-xl font-bold uppercase tracking-tight italic">Histórico de Ordens</h4>
+                    <button onclick="clearOSHistory()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 rounded text-[10px] font-bold uppercase transition italic">Limpar Histórico</button>
+                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left">
                         <thead class="text-neutral-500 text-sm uppercase">
