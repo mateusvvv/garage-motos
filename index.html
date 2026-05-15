@@ -323,9 +323,12 @@
 
                 <!-- Próximos Agendamentos -->
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
-                    <h4 class="text-xl font-bold mb-6 flex items-center gap-2 uppercase tracking-tight">
-                        <span class="w-2 h-6 bg-red-600 block"></span> Próximos Agendamentos
-                    </h4>
+                    <div class="flex justify-between items-center mb-6">
+                        <h4 class="text-xl font-bold flex items-center gap-2 uppercase tracking-tight">
+                            <span class="w-2 h-6 bg-red-600 block"></span> Próximos Agendamentos <span id="admin-appointments-total" class="text-neutral-500 text-sm italic ml-2"></span>
+                        </h4>
+                        <button id="btn-delete-all-appointments" onclick="deleteAllAppointments()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
+                    </div>
                     <div id="admin-appointments-list" class="space-y-4 max-h-[650px] overflow-y-auto pr-2">
                         <!-- Lista de solicitações de clientes -->
                     </div>

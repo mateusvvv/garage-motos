@@ -39,6 +39,7 @@ window.deleteProduct = deleteProduct;
 window.loadOSDraft = loadOSDraft;
 window.reserveProduct = reserveProduct;
 window.deleteOpenOS = deleteOpenOS;
+window.deleteAllAppointments = deleteAllAppointments;
 window.clearOSHistory = clearOSHistory;
 window.finalizeOS = finalizeOS;
 window.deleteAllProducts = deleteAllProducts;
@@ -1448,9 +1449,18 @@ async function printLowStockReport() {
 
 function renderAdminAppointments() {
     const container = document.getElementById('admin-appointments-list');
+    const totalSpan = document.getElementById('admin-appointments-total');
+    const btnDeleteAll = document.getElementById('btn-delete-all-appointments');
     if (!container) return;
-    
+
     const requests = appointmentRequests.filter(e => e.type === 'request');
+
+    if (totalSpan) totalSpan.textContent = `(${requests.length})`;
+    
+    // Gerencia visibilidade do botão "Remover Todos" baseado no cargo e quantidade
+    if (btnDeleteAll) {
+        btnDeleteAll.style.display = (currentUserRole === 'admin' && requests.length > 0) ? 'block' : 'none';
+    }
 
     container.innerHTML = requests.map(e => `
         <div class="bg-black p-4 rounded border border-neutral-800 flex justify-between items-center">
@@ -1474,4 +1484,24 @@ function renderAdminAppointments() {
             </div>
         </div>
     `).join('') || '<p class="text-center text-neutral-500 text-xs py-4">Nenhuma solicitação pendente.</p>';
+}
+
+async function deleteAllAppointments() {
+    if (currentUserRole !== 'admin') {
+        alert("Acesso negado: Apenas administradores podem remover todos os agendamentos.");
+        return;
+    }
+
+    const requests = appointmentRequests.filter(e => e.type === 'request');
+    if (requests.length === 0) return;
+
+    if (!confirm(`Deseja realmente remover permanentemente todos os ${requests.length} agendamentos?`)) return;
+
+    try {
+        await Promise.all(requests.map(e => deleteDoc(doc(db, "appointments", e.id))));
+        alert('Todos os agendamentos foram removidos com sucesso.');
+    } catch (err) {
+        console.error('Erro ao remover agendamentos:', err);
+        alert('Houve um erro ao tentar remover os agendamentos.');
+    }
 }
