@@ -56,6 +56,7 @@ window.stopAlarm = stopAlarm; // Torna a função de parar alarme global
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('calendar')) initCalendar();
     initProductsSync(); // Nova função para sincronizar produtos
+    initAppointmentsSync(); // Nova função para sincronizar agendamentos em qualquer página
     
     // Auxiliar para adicionar listeners apenas se o elemento existir
     const addSafeListener = (id, event, fn) => {
@@ -163,6 +164,7 @@ function toggleAdmin() {
     const panel = document.getElementById('admin-panel');
     panel.classList.toggle('hidden');
     updateScrollLock();
+    if (!panel.classList.contains('hidden')) renderAdminAppointments();
     renderAdminStock(); // Atualiza estoque na visão admin
 }
 
@@ -733,6 +735,10 @@ function initCalendar() {
     });
     calendar.render();
 
+    // Removido o onSnapshot daqui de dentro para a função global initAppointmentsSync
+}
+
+function initAppointmentsSync() {
     // Sincronização em tempo real com o Firebase
     onSnapshot(collection(db, "appointments"), (snapshot) => {
         const docChanges = snapshot.docChanges();
@@ -831,10 +837,14 @@ function closeAppointmentPicker() {
 async function scheduleService(e) {
     e.preventDefault();
     const name = document.getElementById('client-name').value;
+    const phone = document.getElementById('client-phone').value;
     const bike = document.getElementById('bike-info').value;
     const datePart = document.getElementById('service-date-only').value;
 
-    if (!datePart) return;
+    if (!datePart) {
+        alert("Por favor, selecione uma data no calendário antes de solicitar.");
+        return;
+    }
     
     try {
         await addDoc(collection(db, "appointments"), {
@@ -842,6 +852,7 @@ async function scheduleService(e) {
             start: datePart,
             color: '#e11d48',
             clientName: name,
+            clientPhone: phone,
             bikeInfo: bike,
             createdAt: new Date().toISOString(),
             type: 'request'
@@ -1450,7 +1461,17 @@ function renderAdminAppointments() {
                 <p class="font-bold text-sm uppercase">${e.clientName || 'Cliente'}</p>
                 <p class="text-xs text-neutral-500 uppercase tracking-widest">${e.bikeInfo || 'Moto'}</p>
             </div>
-            <button onclick="deleteAppointment('${e.id}')" class="text-neutral-600 hover:text-red-600 text-[10px] font-bold uppercase italic">Concluir/Remover</button>
+            <div class="flex flex-col items-end gap-2">
+                <button onclick="deleteAppointment('${e.id}')" class="text-white hover:text-red-600 text-[10px] font-bold uppercase italic transition-colors">REMOVER</button>
+                ${e.clientPhone ? `
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-neutral-400 font-bold">${e.clientPhone}</span>
+                        <a href="https://api.whatsapp.com/send?phone=55${e.clientPhone.replace(/\D/g, '')}" target="_blank" class="text-[#25D366] hover:scale-110 transition-transform" title="Chamar no WhatsApp">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.16-.17.2-.35.22-.64.08-.3-.15-1.26-.46-2.39-1.48-.88-.79-1.48-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.03-.52-.07-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.07c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2.01-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35Z"/></svg>
+                        </a>
+                    </div>
+                ` : ''}
+            </div>
         </div>
     `).join('') || '<p class="text-center text-neutral-500 text-xs py-4">Nenhuma solicitação pendente.</p>';
 }
