@@ -256,13 +256,20 @@ section {
     display: flex;
     align-items: center;
     background-color: #050505;
+    overflow: hidden;
+    padding-top: 80px;
+}
+
+.hero-showcase::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     background-image: url('img/oficina.png');
     background-size: cover;
     background-position: 75% center;
-    background-attachment: scroll;
     background-repeat: no-repeat;
-    overflow: hidden;
-    padding-top: 80px;
+    z-index: 0;
+    pointer-events: none;
 }
 
 .hero-bg-overlay {
@@ -402,11 +409,13 @@ section {
     }
 
     .hero-showcase {
-        background-position: center center;
-        background-size: cover;
         min-height: 100vh;
         align-items: flex-end;
         padding-bottom: 60px;
+    }
+
+    .hero-showcase::before {
+        background-position: 90% center;
     }
 
     .hero-bg-overlay {
