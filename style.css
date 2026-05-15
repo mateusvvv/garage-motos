@@ -317,10 +317,8 @@ section {
 }
 
 .service-card:hover {
-    border-color: rgba(225, 29, 72, 0.5);
     background: #050505;
     transform: translateY(-5px);
-    box-shadow: 0 10px 30px -10px rgba(225, 29, 72, 0.2);
 }
 
 .admin-tab-btn {
