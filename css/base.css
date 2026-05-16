@@ -23,18 +23,12 @@
 }
 
 .product-card-name {
-    min-height: 3.1rem;
+    min-height: 2.7rem;
     line-height: 1.15;
     overflow-wrap: anywhere;
     word-break: normal;
     display: flex;
     align-items: flex-start;
-}
-
-@media (min-width: 768px) {
-    .product-card-name {
-        min-height: 2.8rem;
-    }
 }
 
 body {

@@ -9,6 +9,7 @@ let productsSyncStarted = false;
 let retryTimer = null;
 const PRODUCTS_LOAD_TIMEOUT = 8000;
 const PRODUCTS_RETRY_DELAY = 5000;
+const PRODUCTS_CACHE_KEY = 'gm_products_cache_v1';
 
 function escapeHtml(value = '') {
     return String(value)
@@ -17,6 +18,63 @@ function escapeHtml(value = '') {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function normalizeProduct(product = {}) {
+    return {
+        id: String(product.id || ''),
+        name: String(product.name || ''),
+        price: Number(product.price || 0),
+        stock: Number.parseInt(product.stock, 10) || 0,
+        image: product.image || '',
+        location: String(product.location || '')
+    };
+}
+
+function applyProducts(products = [], { saveCache = false } = {}) {
+    hasProductsLoaded = true;
+    productsLoadFailed = false;
+    if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+    }
+
+    state.products = products.map(normalizeProduct).filter(product => product.id);
+    if (saveCache) saveProductsCache(state.products);
+
+    renderShop();
+    renderAdminStock(document.getElementById('stock-search')?.value || '');
+    hideLoadingScreen();
+}
+
+function hydrateProductsFromCache() {
+    try {
+        const cached = JSON.parse(localStorage.getItem(PRODUCTS_CACHE_KEY) || '[]');
+        if (!Array.isArray(cached) || cached.length === 0) return false;
+        applyProducts(cached);
+        return true;
+    } catch (error) {
+        console.warn('Cache local do estoque inválido. Limpando cache.', error);
+        localStorage.removeItem(PRODUCTS_CACHE_KEY);
+        return false;
+    }
+}
+
+function saveProductsCache(products = []) {
+    const fullCache = JSON.stringify(products);
+    try {
+        localStorage.setItem(PRODUCTS_CACHE_KEY, fullCache);
+        return;
+    } catch (_) {
+        // Se as imagens em Base64 passarem do limite do navegador, salva uma versão leve.
+    }
+
+    try {
+        const lightCache = products.map(product => ({ ...product, image: '' }));
+        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(lightCache));
+    } catch (error) {
+        console.warn('Não foi possível salvar o cache local do estoque.', error);
+    }
 }
 
 async function addProduct(e) {
@@ -84,8 +142,10 @@ function initProductsSync() {
         searchInput.dataset.listener = 'true';
     }
 
-    renderShop();
-    renderAdminStock(document.getElementById('stock-search')?.value || '');
+    if (!hydrateProductsFromCache()) {
+        renderShop();
+        renderAdminStock(document.getElementById('stock-search')?.value || '');
+    }
     loadProductsOnce(productsCol);
 
     const fallbackTimer = setTimeout(() => {
@@ -111,19 +171,11 @@ function reloadProducts() {
 }
 
 function setProductsFromSnapshot(snapshot) {
-    hasProductsLoaded = true;
-    productsLoadFailed = false;
-    if (retryTimer) {
-        clearTimeout(retryTimer);
-        retryTimer = null;
-    }
-    state.products = snapshot.docs.map(doc => ({
+    const products = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
     }));
-    renderShop();
-    renderAdminStock(document.getElementById('stock-search')?.value || '');
-    hideLoadingScreen();
+    applyProducts(products, { saveCache: true });
 }
 
 async function loadProductsOnce(productsCol = collection(db, "products")) {
@@ -162,15 +214,11 @@ async function loadProductsFromRest(productsCol = collection(db, "products")) {
         }
 
         const payload = await response.json();
-        state.products = (payload.documents || []).map(doc => ({
+        const products = (payload.documents || []).map(doc => ({
             id: doc.name.split('/').pop(),
             ...parseFirestoreFields(doc.fields || {})
         }));
-        hasProductsLoaded = true;
-        productsLoadFailed = false;
-        renderShop();
-        renderAdminStock(document.getElementById('stock-search')?.value || '');
-        hideLoadingScreen();
+        applyProducts(products, { saveCache: true });
         return true;
     } catch (error) {
         if (hasProductsLoaded && !productsLoadFailed) return true;
@@ -341,18 +389,18 @@ function renderShop() {
 
         el.innerHTML = products.map(p => `
             <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
-                <div class="h-24 sm:h-32 md:h-44 xl:h-48 bg-neutral-800 flex items-center justify-center p-1.5 md:p-2 overflow-hidden">
+                <div class="h-40 md:h-56 bg-neutral-800 flex items-center justify-center p-2 overflow-hidden">
                     ${p.image ? 
                         `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${escapeHtml(p.name)}">` :
                         '<div class="text-neutral-600 font-bold uppercase tracking-widest text-[8px] md:text-xs text-center">Sem Foto</div>'
                     }
                 </div>
-                <div class="p-2 md:p-4 flex flex-col flex-grow">
-                    <h5 class="product-card-name font-black text-[8px] sm:text-[10px] md:text-xs uppercase mb-1.5">${escapeHtml(p.name)}</h5>
-                    <p class="text-red-600 font-black text-xs sm:text-sm md:text-xl ${showStock ? 'mb-1' : 'mb-2 md:mb-3'}">R$ ${Number(p.price || 0).toFixed(2)}</p>
-                    ${showStock ? `<p class="text-[8px] sm:text-[9px] md:text-xs text-neutral-400 uppercase tracking-tight md:tracking-widest font-bold mb-2 md:mb-3 leading-tight">${formatStockLabel(p.stock)}</p>` : ''}
+                <div class="p-3 md:p-5 flex flex-col flex-grow">
+                    <h5 class="product-card-name font-black text-[10px] md:text-xs uppercase mb-2">${escapeHtml(p.name)}</h5>
+                    <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${Number(p.price || 0).toFixed(2)}</p>
+                    ${showStock ? `<p class="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest font-bold mb-3 md:mb-4">${formatStockLabel(p.stock)}</p>` : ''}
                     <button onclick="window.reserveProduct('${p.id}')" 
-                       class="mt-auto w-full bg-white text-black px-1 py-1.5 md:py-2 rounded font-bold uppercase text-[7px] sm:text-[8px] md:text-[10px] text-center leading-tight hover:bg-red-600 hover:text-white transition cursor-pointer">
+                       class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition cursor-pointer">
                        Reservar para Retirada
                     </button>
                 </div>
@@ -431,6 +479,7 @@ async function decrementProductStock(productId, quantity = 1) {
 
     const product = state.products.find(p => p.id === productId);
     if (product) product.stock = nextStock;
+    saveProductsCache(state.products);
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
 }
