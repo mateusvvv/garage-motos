@@ -22,6 +22,21 @@
     transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+.product-card-name {
+    min-height: 3.1rem;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    display: flex;
+    align-items: flex-start;
+}
+
+@media (min-width: 768px) {
+    .product-card-name {
+        min-height: 2.8rem;
+    }
+}
+
 body {
     color-scheme: dark; 
     background-color: #050505;

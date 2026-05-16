@@ -341,18 +341,18 @@ function renderShop() {
 
         el.innerHTML = products.map(p => `
             <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
-                <div class="h-40 md:h-56 bg-neutral-800 flex items-center justify-center p-2 overflow-hidden">
+                <div class="h-24 sm:h-32 md:h-44 xl:h-48 bg-neutral-800 flex items-center justify-center p-1.5 md:p-2 overflow-hidden">
                     ${p.image ? 
                         `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${escapeHtml(p.name)}">` :
                         '<div class="text-neutral-600 font-bold uppercase tracking-widest text-[8px] md:text-xs text-center">Sem Foto</div>'
                     }
                 </div>
-                <div class="p-3 md:p-5 flex flex-col flex-grow">
-                    <h5 class="font-bold text-xs md:text-lg mb-1 truncate uppercase">${escapeHtml(p.name)}</h5>
-                    <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${Number(p.price || 0).toFixed(2)}</p>
-                    ${showStock ? `<p class="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest font-bold mb-3 md:mb-4">${formatStockLabel(p.stock)}</p>` : ''}
+                <div class="p-2 md:p-4 flex flex-col flex-grow">
+                    <h5 class="product-card-name font-black text-[8px] sm:text-[10px] md:text-xs uppercase mb-1.5">${escapeHtml(p.name)}</h5>
+                    <p class="text-red-600 font-black text-xs sm:text-sm md:text-xl ${showStock ? 'mb-1' : 'mb-2 md:mb-3'}">R$ ${Number(p.price || 0).toFixed(2)}</p>
+                    ${showStock ? `<p class="text-[8px] sm:text-[9px] md:text-xs text-neutral-400 uppercase tracking-tight md:tracking-widest font-bold mb-2 md:mb-3 leading-tight">${formatStockLabel(p.stock)}</p>` : ''}
                     <button onclick="window.reserveProduct('${p.id}')" 
-                       class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition cursor-pointer">
+                       class="mt-auto w-full bg-white text-black px-1 py-1.5 md:py-2 rounded font-bold uppercase text-[7px] sm:text-[8px] md:text-[10px] text-center leading-tight hover:bg-red-600 hover:text-white transition cursor-pointer">
                        Reservar para Retirada
                     </button>
                 </div>
