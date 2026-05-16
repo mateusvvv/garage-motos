@@ -1,12 +1,23 @@
 import { auth, db, firebaseConfig } from '../../firebase-config.js';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocs } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { toBase64, loadImageForPDF } from '../core/utils.js';
 
 let hasProductsLoaded = false;
 let productsLoadFailed = false;
-let autoRefreshTimer = null;
+let productsSyncStarted = false;
+let retryTimer = null;
 const PRODUCTS_LOAD_TIMEOUT = 8000;
+const PRODUCTS_RETRY_DELAY = 5000;
+
+function escapeHtml(value = '') {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
 
 async function addProduct(e) {
     e.preventDefault();
@@ -57,10 +68,14 @@ async function addProduct(e) {
 }
 
 function initProductsSync() {
+    if (productsSyncStarted) {
+        renderShop();
+        renderAdminStock(document.getElementById('stock-search')?.value || '');
+        return;
+    }
+    productsSyncStarted = true;
+
     const productsCol = collection(db, "products");
-    let productsLoaded = false;
-    const RELOAD_KEY = 'gm_catalog_auto_reload';
-    const isShopPage = !!document.getElementById('full-shop-container');
 
     // Adiciona o ouvinte de busca apenas uma vez
     const searchInput = document.getElementById('shop-search');
@@ -69,27 +84,19 @@ function initProductsSync() {
         searchInput.dataset.listener = 'true';
     }
 
-    // Mecanismo de Auto-Refresh: Se estiver na página de peças e demorar mais de 12s, tenta recarregar uma vez
-    if (isShopPage && !sessionStorage.getItem(RELOAD_KEY)) {
-        autoRefreshTimer = setTimeout(() => {
-            if (!hasProductsLoaded) {
-                sessionStorage.setItem(RELOAD_KEY, 'true');
-                window.location.reload();
-            }
-        }, 12000);
-    }
+    renderShop();
+    renderAdminStock(document.getElementById('stock-search')?.value || '');
+    loadProductsOnce(productsCol);
 
     const fallbackTimer = setTimeout(() => {
-        if (!productsLoaded) loadProductsOnce(productsCol);
-    }, 6000);
+        if (!hasProductsLoaded) loadProductsOnce(productsCol);
+    }, 3000);
 
     onSnapshot(productsCol, (snapshot) => {
-        productsLoaded = true;
         clearTimeout(fallbackTimer);
         setProductsFromSnapshot(snapshot);
         if (auth.currentUser) renderAdminStock();
     }, async (error) => {
-        productsLoaded = true;
         clearTimeout(fallbackTimer);
         console.error("Erro ao sincronizar produtos em tempo real:", error);
         await loadProductsOnce(productsCol);
@@ -106,7 +113,10 @@ function reloadProducts() {
 function setProductsFromSnapshot(snapshot) {
     hasProductsLoaded = true;
     productsLoadFailed = false;
-    if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
+    if (retryTimer) {
+        clearTimeout(retryTimer);
+        retryTimer = null;
+    }
     state.products = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -120,9 +130,11 @@ async function loadProductsOnce(productsCol = collection(db, "products")) {
     try {
         const snapshot = await withTimeout(getDocs(productsCol), PRODUCTS_LOAD_TIMEOUT);
         setProductsFromSnapshot(snapshot);
+        return true;
     } catch (error) {
+        if (hasProductsLoaded && !productsLoadFailed) return true;
         console.error("Erro ao carregar produtos pelo SDK:", error);
-        await loadProductsFromRest();
+        return loadProductsFromRest(productsCol);
     }
 }
 
@@ -135,7 +147,7 @@ function withTimeout(promise, timeoutMs) {
     ]);
 }
 
-async function loadProductsFromRest() {
+async function loadProductsFromRest(productsCol = collection(db, "products")) {
     try {
         const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/products?key=${firebaseConfig.apiKey}`;
         const headers = {};
@@ -159,14 +171,26 @@ async function loadProductsFromRest() {
         renderShop();
         renderAdminStock(document.getElementById('stock-search')?.value || '');
         hideLoadingScreen();
+        return true;
     } catch (error) {
+        if (hasProductsLoaded && !productsLoadFailed) return true;
         console.error("Erro ao carregar produtos pelo fallback REST:", error);
         hasProductsLoaded = true;
         productsLoadFailed = true;
         renderShopError();
         renderAdminStock(document.getElementById('stock-search')?.value || '');
         hideLoadingScreen();
+        scheduleProductsRetry(productsCol);
+        return false;
     }
+}
+
+function scheduleProductsRetry(productsCol) {
+    if (retryTimer) return;
+    retryTimer = setTimeout(() => {
+        retryTimer = null;
+        if (productsLoadFailed) loadProductsOnce(productsCol);
+    }, PRODUCTS_RETRY_DELAY);
 }
 
 function parseFirestoreFields(fields) {
@@ -192,9 +216,6 @@ function hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-screen');
     if (!loadingScreen) return;
 
-    // Limpa o sinalizador de recarregamento para que na próxima visita o refresh funcione se precisar
-    sessionStorage.removeItem('gm_catalog_auto_reload');
-
     // Garante que o scroll seja liberado no mobile
     document.body.style.overflow = '';
     // Adiciona classe para ignorar eventos de toque enquanto desaparece
@@ -209,8 +230,6 @@ function hideLoadingScreen() {
 function renderShopError() {
     const container = document.getElementById('full-shop-container');
     if (!container) return;
-
-    if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
 
     container.innerHTML = `
         <p class="col-span-full text-center text-neutral-500 text-xs uppercase font-bold tracking-[0.2em] py-16">
@@ -300,6 +319,16 @@ function renderShop() {
 
     containers.forEach(({ el, limit, showStock }) => {
         if (!el) return;
+
+        if (!hasProductsLoaded && !productsLoadFailed) {
+            el.innerHTML = `
+                <p class="col-span-full text-center text-neutral-500 text-xs uppercase font-bold tracking-[0.2em] py-16">
+                    Carregando estoque...
+                </p>
+            `;
+            return;
+        }
+
         const products = [...state.products]
             .sort((a, b) => (a.name || "").localeCompare(b.name || "", 'pt-BR'))
             .filter(p => {
@@ -314,13 +343,13 @@ function renderShop() {
             <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
                 <div class="h-40 md:h-56 bg-neutral-800 flex items-center justify-center p-2 overflow-hidden">
                     ${p.image ? 
-                        `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${p.name}">` : 
+                        `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${escapeHtml(p.name)}">` :
                         '<div class="text-neutral-600 font-bold uppercase tracking-widest text-[8px] md:text-xs text-center">Sem Foto</div>'
                     }
                 </div>
                 <div class="p-3 md:p-5 flex flex-col flex-grow">
-                    <h5 class="font-bold text-xs md:text-lg mb-1 truncate uppercase">${p.name}</h5>
-                    <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${parseFloat(p.price).toFixed(2)}</p>
+                    <h5 class="font-bold text-xs md:text-lg mb-1 truncate uppercase">${escapeHtml(p.name)}</h5>
+                    <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${Number(p.price || 0).toFixed(2)}</p>
                     ${showStock ? `<p class="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest font-bold mb-3 md:mb-4">${formatStockLabel(p.stock)}</p>` : ''}
                     <button onclick="window.reserveProduct('${p.id}')" 
                        class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition cursor-pointer">
@@ -345,40 +374,65 @@ async function reserveProduct(productId) {
     }
 
     try {
-        // 1. Atualiza o estoque no Firestore diminuindo 1 unidade
-        const productRef = doc(db, "products", productId);
-        await setDoc(productRef, { ...product, stock: product.stock - 1 });
-
-        // 2. Abre o WhatsApp com a mensagem de reserva
         const message = `Olá! Gostaria de reservar o produto: ${product.name}. Entendo que o pagamento é feito na retirada e que a reserva é válida por 2 horas.`;
         const waUrl = `https://api.whatsapp.com/send?phone=558193735372&text=${encodeURIComponent(message)}`;
+
+        if (auth.currentUser) {
+            await decrementProductStock(productId, 1);
+        }
+
         window.open(waUrl, '_blank');
     } catch (error) {
         console.error("Erro ao processar reserva:", error);
-        alert("Houve um erro ao reservar o item. Verifique sua conexão.");
+        alert("Houve um erro ao reservar o item. Chame a loja pelo WhatsApp para confirmar a disponibilidade.");
     }
 }
 
 async function decrementProductsStock(parts = []) {
+    if (!hasProductsLoaded || productsLoadFailed) {
+        await loadProductsOnce();
+    }
+
     const usageByProduct = parts.reduce((acc, part) => {
-        if (!part.productId) return acc;
-        acc[part.productId] = (acc[part.productId] || 0) + 1;
+        const productId = resolveProductId(part);
+        if (!productId) return acc;
+        acc[productId] = (acc[productId] || 0) + 1;
         return acc;
     }, {});
 
     const productIds = Object.keys(usageByProduct);
     if (productIds.length === 0) return;
 
-    await Promise.all(productIds.map(async (productId) => {
-        const product = state.products.find(p => p.id === productId);
-        if (!product) return;
+    await Promise.all(productIds.map(productId => decrementProductStock(productId, usageByProduct[productId])));
+}
 
-        const quantityUsed = usageByProduct[productId];
-        const currentStock = Number.parseInt(product.stock, 10) || 0;
-        const nextStock = Math.max(currentStock - quantityUsed, 0);
-        const { id, ...productData } = product;
-        await setDoc(doc(db, "products", productId), { ...productData, stock: nextStock });
-    }));
+function resolveProductId(part = {}) {
+    if (part.productId) return part.productId;
+    const partName = String(part.name || '').trim().toLowerCase();
+    if (!partName) return '';
+
+    const exactMatch = state.products.find(product => String(product.name || '').trim().toLowerCase() === partName);
+    return exactMatch?.id || '';
+}
+
+async function decrementProductStock(productId, quantity = 1) {
+    const productRef = doc(db, "products", productId);
+    const nextStock = await runTransaction(db, async (transaction) => {
+        const productDoc = await transaction.get(productRef);
+        if (!productDoc.exists()) {
+            throw new Error(`Produto ${productId} não encontrado.`);
+        }
+
+        const currentStock = Number.parseInt(productDoc.data().stock, 10) || 0;
+        const updatedStock = Math.max(currentStock - quantity, 0);
+        transaction.update(productRef, { stock: updatedStock });
+        return updatedStock;
+    });
+
+    const product = state.products.find(p => p.id === productId);
+    if (product) product.stock = nextStock;
+    renderShop();
+    renderAdminStock(document.getElementById('stock-search')?.value || '');
 }
 
 function formatStockLabel(stock) {
@@ -416,7 +470,7 @@ function renderAdminStock(searchTerm = '') {
     }
     
     const filtered = state.products.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase())
+        String(p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (totalCountElement) {
@@ -429,11 +483,11 @@ function renderAdminStock(searchTerm = '') {
         <div class="flex items-center justify-between p-4 border-b border-neutral-800 hover:bg-black/30 transition rounded">
             <div class="flex items-center gap-4 overflow-hidden">
                 <div class="w-12 h-12 flex-shrink-0 bg-neutral-800 rounded flex items-center justify-center overflow-hidden">
-                    ${p.image ? `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain">` : ''}
+                    ${p.image ? `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${escapeHtml(p.name)}">` : ''}
                 </div>
                 <div class="truncate">
-                    <p class="font-bold text-xs md:text-sm uppercase truncate">${p.name}</p>
-                    <p class="text-[11px] md:text-xs text-neutral-500 uppercase tracking-tighter">Qtd: ${p.stock} | R$ ${parseFloat(p.price).toFixed(2)} ${p.location ? `| Loc: ${p.location}` : ''}</p>
+                    <p class="font-bold text-xs md:text-sm uppercase truncate">${escapeHtml(p.name)}</p>
+                    <p class="text-[11px] md:text-xs text-neutral-500 uppercase tracking-tighter">Qtd: ${Number.parseInt(p.stock, 10) || 0} | R$ ${Number(p.price || 0).toFixed(2)} ${p.location ? `| Loc: ${escapeHtml(p.location)}` : ''}</p>
                 </div>
             </div>
             ${isAdmin ? `

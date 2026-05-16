@@ -4,6 +4,8 @@ import { decrementProductsStock, renderAdminStock } from './products.js';
 import { renderChart, updateRevenueFilterOptions } from './finance.js';
 import { showAdminView } from './ui.js';
 
+let isFinalizingOS = false;
+
 function escapeHtml(value = '') {
     return String(value)
         .replace(/&/g, '&amp;')
@@ -225,8 +227,17 @@ function saveOSDraft(e) {
 
 // ETAPA 2: Finalizar O.S
 async function finalizeOS() {
+    if (isFinalizingOS) return;
+
     const data = getOSFormData();
     if (!data.client) { alert("Informe o cliente para finalizar."); return; }
+
+    isFinalizingOS = true;
+    const closeButton = document.getElementById('os-close-btn');
+    if (closeButton) {
+        closeButton.disabled = true;
+        closeButton.textContent = 'Finalizando...';
+    }
 
     const existingOS = state.serviceOrders.find(o => o.id === data.id);
     const date = new Date().toLocaleDateString('pt-BR');
@@ -238,28 +249,37 @@ async function finalizeOS() {
         editCount: existingOS ? (existingOS.editCount || 0) + 1 : 0
     };
 
-    if (existingOS) {
-        const idx = state.serviceOrders.findIndex(o => o.id === data.id);
-        state.serviceOrders[idx] = osData;
-    } else {
-        state.serviceOrders.push(osData);
-    }
+    try {
+        if (existingOS) {
+            const idx = state.serviceOrders.findIndex(o => o.id === data.id);
+            state.serviceOrders[idx] = osData;
+        } else {
+            state.serviceOrders.push(osData);
+        }
 
-    downloadOSPDF(osData);
-
-    if (!existingOS) {
-        try {
+        if (!existingOS) {
             await decrementProductsStock(osData.parts);
-        } catch (error) {
-            console.error('Erro ao dar baixa no estoque:', error);
-            alert('A O.S foi finalizada, mas houve erro ao dar baixa no estoque. Verifique sua conexão.');
+        }
+
+        downloadOSPDF(osData);
+
+        // Remove dos rascunhos se estiver lá
+        state.openOrders = state.openOrders.filter(o => o.id !== data.id);
+        saveAndRefresh();
+        resetOSForm();
+    } catch (error) {
+        if (!existingOS) {
+            state.serviceOrders = state.serviceOrders.filter(o => o.id !== data.id);
+        }
+        console.error('Erro ao finalizar O.S:', error);
+        alert('Não foi possível finalizar a O.S. Confira a conexão e as permissões do Firebase para dar baixa no estoque.');
+    } finally {
+        isFinalizingOS = false;
+        if (closeButton) {
+            closeButton.disabled = false;
+            closeButton.textContent = 'Finalizar & Gerar PDF';
         }
     }
-
-    // Remove dos rascunhos se estiver lá
-    state.openOrders = state.openOrders.filter(o => o.id !== data.id);
-    saveAndRefresh();
-    resetOSForm();
 }
 
 function getNextOSNumber() {
@@ -443,23 +463,32 @@ function saveAndRefresh() {
 function renderHistory() {
     const body = document.getElementById('os-history-body');
     if (!body) return;
-    body.innerHTML = state.serviceOrders.map((os, index) => `
+
+    const ordered = [...state.serviceOrders].sort((a, b) => (Number(b.osNumber) || b.id) - (Number(a.osNumber) || a.id));
+    body.innerHTML = ordered.map((os, index) => `
         <tr class="text-sm border-b border-neutral-900/50 hover:bg-white/[0.02] transition-colors">
             <td class="py-6 font-black text-red-600 italic leading-tight">
                 O.S #${formatOSNumber(os, index)}
                 ${os.editCount > 0 ? `<br><span class="text-[9px] text-neutral-500 not-italic font-bold uppercase tracking-tighter">Editada ${os.editCount}x</span>` : ''}
             </td>
-            <td class="py-6 text-neutral-400">${os.date}</td>
-            <td class="py-6 font-bold uppercase text-white">${os.client}</td>
-            <td class="py-6 italic uppercase text-neutral-500 text-xs">${os.bike}</td>
-            <td class="py-6 text-red-500 font-black">R$ ${os.total.toFixed(2)}</td>
+            <td class="py-6 text-neutral-400">${escapeHtml(os.date || '')}</td>
+            <td class="py-6 font-bold uppercase text-white">${escapeHtml(os.client || 'Sem Nome')}</td>
+            <td class="py-6 italic uppercase text-neutral-500 text-xs">${escapeHtml(os.bike || 'Sem Moto')}</td>
+            <td class="py-6 text-green-500 font-black uppercase text-[10px] tracking-widest">Finalizada</td>
+            <td class="py-6 text-red-500 font-black">R$ ${Number(os.total || 0).toFixed(2)}</td>
             <td class="py-6 flex gap-4">
                 <button onclick="editOS(${os.id})" class="text-blue-500 hover:text-blue-400 transition">Editar</button>
                 <button onclick="downloadOSPDF(${os.id})" class="text-green-500 hover:text-green-400 transition">Baixar</button>
                 <button onclick="deleteOS(${os.id})" class="text-neutral-600 hover:text-red-600 transition">Remover</button>
             </td>
         </tr>
-    `).join('');
+    `).join('') || `
+        <tr>
+            <td colspan="7" class="py-8 text-center text-neutral-600 text-xs uppercase font-bold tracking-[0.2em]">
+                Nenhuma O.S finalizada
+            </td>
+        </tr>
+    `;
 }
 
 function renderClosedOrders() {
@@ -475,8 +504,8 @@ function renderClosedOrders() {
             <div class="flex justify-between items-start gap-3">
                 <div class="min-w-0">
                     <p class="text-red-600 font-black text-[9px] uppercase italic tracking-widest mb-1">O.S #${formatOSNumber(os, index)}</p>
-                    <h5 class="font-bold text-sm uppercase truncate text-white">${os.client || 'Sem Nome'}</h5>
-                    <p class="text-[10px] text-neutral-500 uppercase italic truncate">${os.bike || 'Sem Moto'} | ${os.date || ''}</p>
+                    <h5 class="font-bold text-sm uppercase truncate text-white">${escapeHtml(os.client || 'Sem Nome')}</h5>
+                    <p class="text-[10px] text-neutral-500 uppercase italic truncate">${escapeHtml(os.bike || 'Sem Moto')} | ${escapeHtml(os.date || '')}</p>
                 </div>
                 <p class="text-white font-black text-sm whitespace-nowrap">R$ ${Number(os.total || 0).toFixed(2)}</p>
             </div>
@@ -500,10 +529,10 @@ function renderOpenOrders() {
             <div class="flex justify-between items-start">
                 <div class="flex-1 truncate mr-2">
                     <p class="text-red-600 font-black text-[9px] uppercase italic tracking-widest mb-1">Rascunho em aberto</p>
-                    <h5 class="font-bold text-sm uppercase truncate text-white">${os.client || 'Sem Nome'}</h5>
-                    <p class="text-[10px] text-neutral-500 uppercase italic truncate">${os.bike || 'Sem Moto'}</p>
+                    <h5 class="font-bold text-sm uppercase truncate text-white">${escapeHtml(os.client || 'Sem Nome')}</h5>
+                    <p class="text-[10px] text-neutral-500 uppercase italic truncate">${escapeHtml(os.bike || 'Sem Moto')}</p>
                 </div>
-                <p class="text-white font-black text-sm">R$ ${os.total.toFixed(2)}</p>
+                <p class="text-white font-black text-sm">R$ ${Number(os.total || 0).toFixed(2)}</p>
             </div>
             <div class="flex gap-2 border-t border-neutral-900 pt-3">
                 <button onclick="loadOSDraft(${os.id})" class="flex-1 bg-neutral-800 py-2 rounded text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition">Carregar</button>

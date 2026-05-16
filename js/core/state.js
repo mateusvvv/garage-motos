@@ -1,8 +1,52 @@
+function readStorageArray(key) {
+    try {
+        const value = localStorage.getItem(key);
+        if (!value) return [];
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (error) {
+        console.error(`Erro ao ler ${key} do LocalStorage:`, error);
+        try {
+            localStorage.setItem(`${key}_backup_corrompido_${Date.now()}`, localStorage.getItem(key) || '');
+        } catch (_) {}
+        return [];
+    }
+}
+
+function normalizeOrder(order, index = 0) {
+    const parts = Array.isArray(order?.parts) ? order.parts : [];
+    const normalizedParts = parts.map(part => ({
+        name: String(part?.name || ''),
+        price: Number(part?.price || 0),
+        productId: String(part?.productId || '')
+    }));
+    const partsTotal = Number(order?.partsTotal ?? normalizedParts.reduce((sum, part) => sum + part.price, 0));
+    const labor = Number(order?.labor || 0);
+    const total = Number(order?.total ?? labor + partsTotal);
+    const id = Number(order?.id) || Date.now() + index;
+
+    return {
+        ...order,
+        id,
+        client: String(order?.client || ''),
+        bike: String(order?.bike || ''),
+        observations: String(order?.observations || ''),
+        mechanic: order?.mechanic || 'leo',
+        paymentMethod: order?.paymentMethod || 'pix',
+        labor,
+        parts: normalizedParts,
+        partsTotal,
+        total,
+        discounts: Array.isArray(order?.discounts) ? order.discounts : [],
+        discountTotal: Number(order?.discountTotal || 0)
+    };
+}
+
 // Estado compartilhado entre os módulos da aplicação.
 export const state = {
     products: [],
-    openOrders: JSON.parse(localStorage.getItem('gm_open_orders')) || [],
-    serviceOrders: JSON.parse(localStorage.getItem('gm_orders')) || [],
+    openOrders: readStorageArray('gm_open_orders').map(normalizeOrder),
+    serviceOrders: readStorageArray('gm_orders').map(normalizeOrder),
     appointmentRequests: [],
     pickerCalendar: null,
     tempSelectedDate: '',
