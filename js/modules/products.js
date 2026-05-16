@@ -5,6 +5,7 @@ import { toBase64, loadImageForPDF } from '../core/utils.js';
 
 let hasProductsLoaded = false;
 let productsLoadFailed = false;
+let autoRefreshTimer = null;
 const PRODUCTS_LOAD_TIMEOUT = 8000;
 
 async function addProduct(e) {
@@ -58,6 +59,25 @@ async function addProduct(e) {
 function initProductsSync() {
     const productsCol = collection(db, "products");
     let productsLoaded = false;
+    const RELOAD_KEY = 'gm_catalog_auto_reload';
+    const isShopPage = !!document.getElementById('full-shop-container');
+
+    // Adiciona o ouvinte de busca apenas uma vez
+    const searchInput = document.getElementById('shop-search');
+    if (searchInput && !searchInput.dataset.listener) {
+        searchInput.addEventListener('input', () => renderShop());
+        searchInput.dataset.listener = 'true';
+    }
+
+    // Mecanismo de Auto-Refresh: Se estiver na página de peças e demorar mais de 12s, tenta recarregar uma vez
+    if (isShopPage && !sessionStorage.getItem(RELOAD_KEY)) {
+        autoRefreshTimer = setTimeout(() => {
+            if (!hasProductsLoaded) {
+                sessionStorage.setItem(RELOAD_KEY, 'true');
+                window.location.reload();
+            }
+        }, 12000);
+    }
 
     const fallbackTimer = setTimeout(() => {
         if (!productsLoaded) loadProductsOnce(productsCol);
@@ -86,6 +106,7 @@ function reloadProducts() {
 function setProductsFromSnapshot(snapshot) {
     hasProductsLoaded = true;
     productsLoadFailed = false;
+    if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
     state.products = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -171,6 +192,14 @@ function hideLoadingScreen() {
     const loadingScreen = document.getElementById('loading-screen');
     if (!loadingScreen) return;
 
+    // Limpa o sinalizador de recarregamento para que na próxima visita o refresh funcione se precisar
+    sessionStorage.removeItem('gm_catalog_auto_reload');
+
+    // Garante que o scroll seja liberado no mobile
+    document.body.style.overflow = '';
+    // Adiciona classe para ignorar eventos de toque enquanto desaparece
+    loadingScreen.style.pointerEvents = 'none';
+    
     loadingScreen.classList.add('opacity-0');
     setTimeout(() => {
         loadingScreen.classList.add('hidden');
@@ -181,11 +210,15 @@ function renderShopError() {
     const container = document.getElementById('full-shop-container');
     if (!container) return;
 
+    if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
+
     container.innerHTML = `
         <p class="col-span-full text-center text-neutral-500 text-xs uppercase font-bold tracking-[0.2em] py-16">
             Não foi possível carregar o estoque agora. Verifique a conexão ou as regras de leitura da coleção products no Firebase.
         </p>
     `;
+    // Se deu erro, ainda assim precisamos esconder o loading para mostrar a mensagem
+    hideLoadingScreen();
 }
 
 function editProduct(id) {
@@ -242,6 +275,24 @@ function resetProductForm() {
 function renderShop() {
     const searchInput = document.getElementById('shop-search');
     const searchTerm = searchInput?.value.trim().toLowerCase() || '';
+
+    // Atualiza o texto do catálogo no centro (página de peças)
+    const countLabel = document.getElementById('catalog-count-label');
+    if (countLabel) {
+        const total = state.products.length;
+        countLabel.textContent = `Catálogo Completo Garage Motos (${total} ${total === 1 ? 'item disponível' : 'itens disponíveis'})`;
+    }
+
+    // Atualiza o selo de quantidade no canto (página de peças)
+    const badge = document.getElementById('items-counter-badge');
+    if (badge) {
+        const count = state.products.length;
+        badge.innerHTML = `
+            <div class="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></div>
+            <span class="text-white text-[9px] font-black uppercase tracking-widest">${count} ${count === 1 ? 'Item' : 'Itens'} no Estoque</span>
+        `;
+    }
+
     const containers = [
         { el: document.getElementById('shop-container'), limit: 4, showStock: false },
         { el: document.getElementById('full-shop-container'), limit: 100, showStock: true }
@@ -249,7 +300,8 @@ function renderShop() {
 
     containers.forEach(({ el, limit, showStock }) => {
         if (!el) return;
-        const products = state.products
+        const products = [...state.products]
+            .sort((a, b) => (a.name || "").localeCompare(b.name || "", 'pt-BR'))
             .filter(p => {
                 if (!showStock || !searchTerm) return true;
                 const name = String(p.name || '').toLowerCase();
@@ -270,7 +322,7 @@ function renderShop() {
                     <h5 class="font-bold text-xs md:text-lg mb-1 truncate uppercase">${p.name}</h5>
                     <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${parseFloat(p.price).toFixed(2)}</p>
                     ${showStock ? `<p class="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest font-bold mb-3 md:mb-4">${formatStockLabel(p.stock)}</p>` : ''}
-                    <button onclick="reserveProduct('${p.id}')" 
+                    <button onclick="window.reserveProduct('${p.id}')" 
                        class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition cursor-pointer">
                        Reservar para Retirada
                     </button>
@@ -495,6 +547,8 @@ async function printLowStockReport() {
     doc.save(`lista_compras_garage_motos.pdf`);
 }
 
+// Torna as funções acessíveis para os botões HTML (onclick)
+window.reserveProduct = reserveProduct;
+window.renderShop = renderShop;
 
 export { addProduct, initProductsSync, reloadProducts, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, reserveProduct, decrementProductsStock, formatStockLabel, renderAdminStock, printLowStockReport };
-

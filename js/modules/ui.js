@@ -41,6 +41,7 @@ function stopAlarm() {
 
 function toggleAdminNav() {
     const nav = document.getElementById('admin-nav-menu');
+    if (!nav) return;
     nav.classList.toggle('hidden');
 }
 
@@ -75,7 +76,10 @@ function showAdminView(viewName) {
     if (targetBtn) targetBtn.classList.add('active');
 
     // Atualiza o título no topo do painel
-    document.getElementById('admin-view-title').textContent = viewTitles[viewName] || 'ADMIN';
+    const viewTitle = document.getElementById('admin-view-title');
+    if (viewTitle) {
+        viewTitle.textContent = viewTitles[viewName] || 'ADMIN';
+    }
     
     // Atualiza componentes específicos se necessário
     if (viewName === 'financeiro') window.GM?.renderChart?.();
