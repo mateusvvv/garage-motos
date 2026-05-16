@@ -1,5 +1,5 @@
 import { auth, db, firebaseConfig } from '../../firebase-config.js';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocs, runTransaction } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocsFromServer, runTransaction } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { toBase64, loadImageForPDF } from '../core/utils.js';
 
@@ -9,7 +9,6 @@ let productsSyncStarted = false;
 let retryTimer = null;
 const PRODUCTS_LOAD_TIMEOUT = 8000;
 const PRODUCTS_RETRY_DELAY = 5000;
-const PRODUCTS_CACHE_KEY = 'gm_products_cache_v1';
 
 function escapeHtml(value = '') {
     return String(value)
@@ -31,7 +30,7 @@ function normalizeProduct(product = {}) {
     };
 }
 
-function applyProducts(products = [], { saveCache = false } = {}) {
+function applyProducts(products = []) {
     hasProductsLoaded = true;
     productsLoadFailed = false;
     if (retryTimer) {
@@ -40,41 +39,10 @@ function applyProducts(products = [], { saveCache = false } = {}) {
     }
 
     state.products = products.map(normalizeProduct).filter(product => product.id);
-    if (saveCache) saveProductsCache(state.products);
 
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
     hideLoadingScreen();
-}
-
-function hydrateProductsFromCache() {
-    try {
-        const cached = JSON.parse(localStorage.getItem(PRODUCTS_CACHE_KEY) || '[]');
-        if (!Array.isArray(cached) || cached.length === 0) return false;
-        applyProducts(cached);
-        return true;
-    } catch (error) {
-        console.warn('Cache local do estoque inválido. Limpando cache.', error);
-        localStorage.removeItem(PRODUCTS_CACHE_KEY);
-        return false;
-    }
-}
-
-function saveProductsCache(products = []) {
-    const fullCache = JSON.stringify(products);
-    try {
-        localStorage.setItem(PRODUCTS_CACHE_KEY, fullCache);
-        return;
-    } catch (_) {
-        // Se as imagens em Base64 passarem do limite do navegador, salva uma versão leve.
-    }
-
-    try {
-        const lightCache = products.map(product => ({ ...product, image: '' }));
-        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(lightCache));
-    } catch (error) {
-        console.warn('Não foi possível salvar o cache local do estoque.', error);
-    }
 }
 
 async function addProduct(e) {
@@ -142,18 +110,18 @@ function initProductsSync() {
         searchInput.dataset.listener = 'true';
     }
 
-    if (!hydrateProductsFromCache()) {
-        renderShop();
-        renderAdminStock(document.getElementById('stock-search')?.value || '');
-    }
+    localStorage.removeItem('gm_products_cache_v1');
+    renderShop();
+    renderAdminStock(document.getElementById('stock-search')?.value || '');
     loadProductsOnce(productsCol);
 
     const fallbackTimer = setTimeout(() => {
         if (!hasProductsLoaded) loadProductsOnce(productsCol);
     }, 3000);
 
-    onSnapshot(productsCol, (snapshot) => {
+    onSnapshot(productsCol, { includeMetadataChanges: true }, (snapshot) => {
         clearTimeout(fallbackTimer);
+        if (snapshot.metadata.fromCache) return;
         setProductsFromSnapshot(snapshot);
         if (auth.currentUser) renderAdminStock();
     }, async (error) => {
@@ -166,6 +134,7 @@ function initProductsSync() {
 function reloadProducts() {
     hasProductsLoaded = false;
     productsLoadFailed = false;
+    renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
     return loadProductsOnce();
 }
@@ -175,12 +144,12 @@ function setProductsFromSnapshot(snapshot) {
         id: doc.id,
         ...doc.data()
     }));
-    applyProducts(products, { saveCache: true });
+    applyProducts(products);
 }
 
 async function loadProductsOnce(productsCol = collection(db, "products")) {
     try {
-        const snapshot = await withTimeout(getDocs(productsCol), PRODUCTS_LOAD_TIMEOUT);
+        const snapshot = await withTimeout(getDocsFromServer(productsCol), PRODUCTS_LOAD_TIMEOUT);
         setProductsFromSnapshot(snapshot);
         return true;
     } catch (error) {
@@ -201,24 +170,37 @@ function withTimeout(promise, timeoutMs) {
 
 async function loadProductsFromRest(productsCol = collection(db, "products")) {
     try {
-        const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/products?key=${firebaseConfig.apiKey}`;
         const headers = {};
 
         if (auth.currentUser) {
             headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
         }
 
-        const response = await fetch(url, { headers });
-        if (!response.ok) {
-            throw new Error(`REST ${response.status}: ${await response.text()}`);
-        }
+        const products = [];
+        let pageToken = '';
 
-        const payload = await response.json();
-        const products = (payload.documents || []).map(doc => ({
-            id: doc.name.split('/').pop(),
-            ...parseFirestoreFields(doc.fields || {})
-        }));
-        applyProducts(products, { saveCache: true });
+        do {
+            const params = new URLSearchParams({
+                key: firebaseConfig.apiKey,
+                pageSize: '300'
+            });
+            if (pageToken) params.set('pageToken', pageToken);
+
+            const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/products?${params.toString()}`;
+            const response = await fetch(url, { headers });
+            if (!response.ok) {
+                throw new Error(`REST ${response.status}: ${await response.text()}`);
+            }
+
+            const payload = await response.json();
+            products.push(...(payload.documents || []).map(doc => ({
+                id: doc.name.split('/').pop(),
+                ...parseFirestoreFields(doc.fields || {})
+            })));
+            pageToken = payload.nextPageToken || '';
+        } while (pageToken);
+
+        applyProducts(products);
         return true;
     } catch (error) {
         if (hasProductsLoaded && !productsLoadFailed) return true;
@@ -347,22 +329,27 @@ function renderShop() {
     const countLabel = document.getElementById('catalog-count-label');
     if (countLabel) {
         const total = state.products.length;
-        countLabel.textContent = `Catálogo Completo Garage Motos (${total} ${total === 1 ? 'item disponível' : 'itens disponíveis'})`;
+        countLabel.textContent = hasProductsLoaded
+            ? `Catálogo Completo Garage Motos (${total} ${total === 1 ? 'item disponível' : 'itens disponíveis'})`
+            : 'Carregando Catálogo Garage Motos...';
     }
 
     // Atualiza o selo de quantidade no canto (página de peças)
     const badge = document.getElementById('items-counter-badge');
     if (badge) {
         const count = state.products.length;
-        badge.innerHTML = `
+        badge.innerHTML = hasProductsLoaded ? `
             <div class="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></div>
             <span class="text-white text-[9px] font-black uppercase tracking-widest">${count} ${count === 1 ? 'Item' : 'Itens'} no Estoque</span>
+        ` : `
+            <div class="w-1.5 h-1.5 bg-red-600 rounded-full animate-pulse"></div>
+            <span class="text-white text-[9px] font-black uppercase tracking-widest">Atualizando Estoque</span>
         `;
     }
 
     const containers = [
         { el: document.getElementById('shop-container'), limit: 4, showStock: false },
-        { el: document.getElementById('full-shop-container'), limit: 100, showStock: true }
+        { el: document.getElementById('full-shop-container'), limit: Infinity, showStock: true }
     ];
 
     containers.forEach(({ el, limit, showStock }) => {
@@ -479,7 +466,6 @@ async function decrementProductStock(productId, quantity = 1) {
 
     const product = state.products.find(p => p.id === productId);
     if (product) product.stock = nextStock;
-    saveProductsCache(state.products);
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
 }
