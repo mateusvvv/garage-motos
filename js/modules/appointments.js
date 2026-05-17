@@ -150,6 +150,9 @@ function closeAppointmentPicker() {
 
 async function scheduleService(e) {
     e.preventDefault();
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn ? submitBtn.textContent : '';
+
     const name = document.getElementById('client-name').value;
     const phone = document.getElementById('client-phone').value;
     const bike = document.getElementById('bike-info').value;
@@ -167,6 +170,11 @@ async function scheduleService(e) {
     }
     
     try {
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Carregando...';
+        }
+
         await addDoc(collection(db, "appointments"), {
             title: `🛠️ ${bike} - ${name}`,
             start: datePart,
@@ -187,6 +195,11 @@ async function scheduleService(e) {
         
     } catch (err) {
         alert('Erro ao agendar. Tente novamente.');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
     }
 }
 
