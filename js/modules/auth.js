@@ -6,6 +6,11 @@ import { showAdminView } from './ui.js';
 import { renderAdminStock } from './products.js';
 import { renderAdminAppointments, initAppointmentsSync } from './appointments.js';
 
+function handleBeforeUnload(e) {
+    e.preventDefault();
+    e.returnValue = ''; // Exibe a caixa de diálogo padrão do navegador
+}
+
 function clearLoginForm() {
     const loginForm = document.getElementById('login-form');
     if (loginForm) {
@@ -39,6 +44,7 @@ export async function loginAdmin(e) {
 
 export async function logoutAdmin() {
     if (confirm('Tem certeza que deseja sair do painel administrativo?')) {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
         await signOut(auth);
         clearLoginForm();
     }
@@ -79,10 +85,12 @@ export function initAuthObserver() {
             renderAdminStock();
             renderAdminAppointments();
             showAdminView('gestao');
+            window.addEventListener('beforeunload', handleBeforeUnload);
         } else {
             dashboard.classList.add('hidden');
             loginUI.classList.remove('hidden');
             clearLoginForm();
+            window.removeEventListener('beforeunload', handleBeforeUnload);
         }
     });
 }
