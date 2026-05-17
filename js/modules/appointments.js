@@ -154,6 +154,12 @@ async function scheduleService(e) {
     const phone = document.getElementById('client-phone').value;
     const bike = document.getElementById('bike-info').value;
     const datePart = document.getElementById('service-date-only').value;
+    const consent = document.getElementById('privacy-consent')?.checked;
+
+    if (!consent) {
+        alert("Para prosseguir, é necessário aceitar o uso de dados para o agendamento.");
+        return;
+    }
 
     if (!datePart) {
         alert("Por favor, selecione uma data no calendário antes de solicitar.");
