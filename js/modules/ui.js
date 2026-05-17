@@ -1,3 +1,4 @@
+import { auth } from '../../firebase-config.js';
 import { state, notificationSound } from '../core/state.js';
 
 function updateScrollLock() {
@@ -103,7 +104,8 @@ function updateMenuBadge(count) {
     const desktopBadge = document.getElementById('menu-badge-desktop');
     const displayCount = count > 9 ? '9+' : count;
     
-    if (count > 0) {
+    // Só exibe se houver agendamentos E o usuário estiver logado (admin ou funcionário)
+    if (count > 0 && auth.currentUser) {
         mobileBadge?.classList.remove('hidden');
         desktopBadge?.classList.remove('hidden');
         if (mobileBadge) mobileBadge.textContent = displayCount;

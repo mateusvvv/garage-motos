@@ -179,6 +179,12 @@ async function scheduleService(e) {
         });
         alert('Solicitação enviada com sucesso! O mecânico verificará sua vaga.');
         e.target.reset();
+        
+        // Limpeza manual dos campos customizados (Picker)
+        document.getElementById('service-date-only').value = '';
+        document.getElementById('picker-label').textContent = 'Clique para escolher';
+        document.getElementById('picker-selected').textContent = '';
+        
     } catch (err) {
         alert('Erro ao agendar. Tente novamente.');
     }
