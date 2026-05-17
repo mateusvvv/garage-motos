@@ -16,6 +16,7 @@ Resumo das permissões:
 
 - `products`: qualquer visitante pode ler; apenas a equipe cadastrada pode criar/editar; apenas o admin pode excluir.
 - `appointments`: qualquer visitante pode solicitar agendamento; apenas a equipe pode ler/remover/bloquear.
+- `serviceOrders`: apenas a equipe pode ler/criar/editar O.S; apenas o admin pode excluir/limpar histórico.
 - `users`: leitura restrita ao próprio usuário ou admin; escrita só admin.
 
 E-mails liberados para gestão:

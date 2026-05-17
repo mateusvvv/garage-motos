@@ -1,10 +1,15 @@
+import { db } from '../../firebase-config.js';
+import { collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { loadImageForPDF } from '../core/utils.js';
 import { decrementProductsStock, renderAdminStock } from './products.js';
-import { renderChart, updateRevenueFilterOptions } from './finance.js';
+import { refreshFinanceDashboard } from './finance.js';
 import { showAdminView } from './ui.js';
 
 let isFinalizingOS = false;
+let ordersSyncStarted = false;
+const SERVICE_ORDERS_COLLECTION = 'serviceOrders';
+const ORDERS_MIGRATION_KEY = 'gm_orders_firebase_migrated_v1';
 
 function escapeHtml(value = '') {
     return String(value)
@@ -13,6 +18,87 @@ function escapeHtml(value = '') {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
+}
+
+function normalizeSyncedOrder(order = {}, fallbackId = '') {
+    const parts = Array.isArray(order.parts) ? order.parts : [];
+    const normalizedParts = parts.map(part => ({
+        name: String(part?.name || ''),
+        price: Number(part?.price || 0),
+        productId: String(part?.productId || '')
+    }));
+    const partsTotal = Number(order.partsTotal ?? normalizedParts.reduce((sum, part) => sum + part.price, 0));
+    const labor = Number(order.labor || 0);
+
+    return {
+        ...order,
+        id: Number(order.id) || Number(fallbackId) || Date.now(),
+        osNumber: Number(order.osNumber) || 0,
+        date: String(order.date || new Date().toLocaleDateString('pt-BR')),
+        client: String(order.client || ''),
+        bike: String(order.bike || ''),
+        observations: String(order.observations || ''),
+        mechanic: order.mechanic || 'leo',
+        paymentMethod: order.paymentMethod || 'pix',
+        labor,
+        parts: normalizedParts,
+        partsTotal,
+        total: Number(order.total ?? labor + partsTotal),
+        discounts: Array.isArray(order.discounts) ? order.discounts : [],
+        discountTotal: Number(order.discountTotal || 0),
+        editCount: Number(order.editCount || 0)
+    };
+}
+
+function refreshOrdersUI() {
+    renderHistory();
+    renderClosedOrders();
+    renderAdminStock();
+    refreshFinanceDashboard();
+}
+
+async function migrateLocalOrdersIfNeeded(snapshot) {
+    if (!snapshot.empty || localStorage.getItem(ORDERS_MIGRATION_KEY) === 'true') return false;
+
+    const localOrders = state.serviceOrders.filter(order => order?.id);
+    localStorage.setItem(ORDERS_MIGRATION_KEY, 'true');
+    if (localOrders.length === 0) return false;
+
+    const batch = writeBatch(db);
+    localOrders.forEach(order => {
+        const normalized = normalizeSyncedOrder(order, order.id);
+        batch.set(doc(db, SERVICE_ORDERS_COLLECTION, String(normalized.id)), normalized);
+    });
+    await batch.commit();
+    return true;
+}
+
+function initOrdersSync() {
+    if (ordersSyncStarted) {
+        refreshOrdersUI();
+        return;
+    }
+    ordersSyncStarted = true;
+
+    onSnapshot(collection(db, SERVICE_ORDERS_COLLECTION), async (snapshot) => {
+        const migrated = await migrateLocalOrdersIfNeeded(snapshot);
+        if (migrated) {
+            refreshOrdersUI();
+            return;
+        }
+        state.serviceOrders = snapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
+        try {
+            localStorage.setItem('gm_orders_cache', JSON.stringify(state.serviceOrders));
+        } catch (_) {}
+        refreshOrdersUI();
+    }, (error) => {
+        console.error('Erro ao sincronizar O.S com o Firestore:', error);
+        refreshOrdersUI();
+    });
+}
+
+async function saveServiceOrder(osData) {
+    await setDoc(doc(db, SERVICE_ORDERS_COLLECTION, String(osData.id)), osData);
 }
 
 function addPartRow(name = '', price = '', productId = '') {
@@ -261,7 +347,8 @@ async function finalizeOS() {
             await decrementProductsStock(osData.parts);
         }
 
-        downloadOSPDF(osData);
+        await saveServiceOrder(osData);
+        await downloadOSPDF(osData);
 
         // Remove dos rascunhos se estiver lá
         state.openOrders = state.openOrders.filter(o => o.id !== data.id);
@@ -445,8 +532,8 @@ async function downloadOSPDF(osOrId) {
 
 function saveAndRefresh() {
     try {
-        localStorage.setItem('gm_orders', JSON.stringify(state.serviceOrders));
         localStorage.setItem('gm_open_orders', JSON.stringify(state.openOrders));
+        localStorage.setItem('gm_orders_cache', JSON.stringify(state.serviceOrders));
     } catch (e) {
         console.error("Erro ao salvar no LocalStorage: Provavelmente o limite de 5MB foi atingido devido às fotos.");
         alert("Atenção: O limite de armazenamento de fotos foi atingido. Tente usar fotos menores ou remova itens antigos.");
@@ -456,14 +543,14 @@ function saveAndRefresh() {
     renderOpenOrders();
     renderClosedOrders();
     renderAdminStock();
-    updateRevenueFilterOptions();
-    renderChart();
+    refreshFinanceDashboard();
 }
 
 function renderHistory() {
     const body = document.getElementById('os-history-body');
     if (!body) return;
 
+    const canDelete = state.currentUserRole === 'admin';
     const ordered = [...state.serviceOrders].sort((a, b) => (Number(b.osNumber) || b.id) - (Number(a.osNumber) || a.id));
     body.innerHTML = ordered.map((os, index) => `
         <tr class="text-sm border-b border-neutral-900/50 hover:bg-white/[0.02] transition-colors">
@@ -479,7 +566,7 @@ function renderHistory() {
             <td class="py-6 flex gap-4">
                 <button onclick="editOS(${os.id})" class="text-blue-500 hover:text-blue-400 transition">Editar</button>
                 <button onclick="downloadOSPDF(${os.id})" class="text-green-500 hover:text-green-400 transition">Baixar</button>
-                <button onclick="deleteOS(${os.id})" class="text-neutral-600 hover:text-red-600 transition">Remover</button>
+                ${canDelete ? `<button onclick="deleteOS(${os.id})" class="text-neutral-600 hover:text-red-600 transition">Remover</button>` : ''}
             </td>
         </tr>
     `).join('') || `
@@ -606,13 +693,24 @@ function resetOSForm() {
     document.getElementById('os-cancel-edit').classList.add('hidden');
 }
 
-function deleteOS(id) {
+async function deleteOS(id) {
+    if (state.currentUserRole !== 'admin') {
+        alert('Ação negada: Apenas administradores podem excluir O.S finalizadas.');
+        return;
+    }
+
     if (!confirm('Tem certeza que deseja excluir esta O.S?')) return;
-    state.serviceOrders = state.serviceOrders.filter(o => o.id !== id);
-    saveAndRefresh();
+    try {
+        await deleteDoc(doc(db, SERVICE_ORDERS_COLLECTION, String(id)));
+        state.serviceOrders = state.serviceOrders.filter(o => o.id !== id);
+        saveAndRefresh();
+    } catch (error) {
+        console.error('Erro ao excluir O.S no Firestore:', error);
+        alert('Não foi possível excluir a O.S. Verifique sua conexão.');
+    }
 }
 
-function clearOSHistory() {
+async function clearOSHistory() {
     if (state.currentUserRole !== 'admin') {
         alert('Ação negada: Apenas administradores podem limpar o histórico.');
         return;
@@ -624,8 +722,18 @@ function clearOSHistory() {
     }
 
     if (confirm(`Atenção: Você está prestes a apagar permanentemente todas as ${state.serviceOrders.length} ordens de serviço do histórico. Esta ação não pode ser desfeita. Deseja continuar?`)) {
-        state.serviceOrders = [];
-        saveAndRefresh();
+        try {
+            const snapshot = await getDocs(collection(db, SERVICE_ORDERS_COLLECTION));
+            const batch = writeBatch(db);
+            snapshot.docs.forEach(item => batch.delete(item.ref));
+            await batch.commit();
+            localStorage.setItem(ORDERS_MIGRATION_KEY, 'true');
+            state.serviceOrders = [];
+            saveAndRefresh();
+        } catch (error) {
+            console.error('Erro ao limpar histórico no Firestore:', error);
+            alert('Não foi possível limpar o histórico. Verifique sua conexão.');
+        }
     }
 }
 
@@ -636,4 +744,4 @@ function deleteOpenOS(id) {
 }
 
 
-export { addPartRow, updateDiscountTargets, applyOSDiscount, getOSFormData, saveOSDraft, finalizeOS, getNextOSNumber, formatOSNumber, downloadOSPDF, saveAndRefresh, renderHistory, renderOpenOrders, renderClosedOrders, loadOSDraft, editOS, resetOSForm, deleteOS, clearOSHistory, deleteOpenOS };
+export { addPartRow, updateDiscountTargets, applyOSDiscount, getOSFormData, initOrdersSync, saveOSDraft, finalizeOS, getNextOSNumber, formatOSNumber, downloadOSPDF, saveAndRefresh, renderHistory, renderOpenOrders, renderClosedOrders, loadOSDraft, editOS, resetOSForm, deleteOS, clearOSHistory, deleteOpenOS };

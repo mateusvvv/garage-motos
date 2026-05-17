@@ -82,7 +82,11 @@ function showAdminView(viewName) {
     }
     
     // Atualiza componentes específicos se necessário
-    if (viewName === 'financeiro') window.GM?.renderChart?.();
+    if (viewName === 'financeiro') {
+        window.GM?.refreshFinanceDashboard?.();
+        requestAnimationFrame(() => window.GM?.refreshFinanceDashboard?.());
+        setTimeout(() => window.GM?.refreshFinanceDashboard?.(), 250);
+    }
 }
 
 function toggleShop() {

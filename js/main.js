@@ -1,14 +1,15 @@
 import { initProductsSync, addProduct, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, renderAdminStock, reserveProduct, reloadProducts, printLowStockReport } from './modules/products.js';
 import { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments } from './modules/appointments.js';
 import { addPartRow, updateDiscountTargets, applyOSDiscount, saveOSDraft, finalizeOS, loadOSDraft, deleteOpenOS, clearOSHistory, editOS, deleteOS, downloadOSPDF, resetOSForm, renderHistory, renderOpenOrders, renderClosedOrders } from './modules/orders.js';
-import { renderChart, updateRevenueFilterOptions } from './modules/finance.js';
+import { renderChart, refreshFinanceDashboard } from './modules/finance.js';
 import { loginAdmin, logoutAdmin, initAuthObserver } from './modules/auth.js';
 import { toggleMenu, toggleAdmin, toggleShop, toggleAdminNav, showAdminView, startAlarm, stopAlarm } from './modules/ui.js';
 
 window.GM = {
     renderAdminStock,
     renderAdminAppointments,
-    renderChart
+    renderChart,
+    refreshFinanceDashboard
 };
 
 Object.assign(window, {
@@ -69,7 +70,19 @@ document.addEventListener('DOMContentLoaded', () => {
     renderHistory();
     renderOpenOrders();
     renderClosedOrders();
-    updateRevenueFilterOptions();
-    renderChart();
+    refreshFinanceDashboard();
     initAuthObserver();
+
+    const refreshFinanceIfOpen = () => {
+        const financeView = document.getElementById('view-financeiro');
+        if (financeView && !financeView.classList.contains('hidden')) {
+            refreshFinanceDashboard();
+        }
+    };
+
+    window.addEventListener('resize', refreshFinanceIfOpen);
+    window.addEventListener('orientationchange', () => setTimeout(refreshFinanceIfOpen, 250));
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refreshFinanceIfOpen();
+    });
 });

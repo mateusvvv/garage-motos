@@ -5,6 +5,7 @@ import { state } from '../core/state.js';
 import { showAdminView } from './ui.js';
 import { renderAdminStock } from './products.js';
 import { renderAdminAppointments } from './appointments.js';
+import { initOrdersSync } from './orders.js';
 
 function clearLoginForm() {
     const loginForm = document.getElementById('login-form');
@@ -75,6 +76,7 @@ export function initAuthObserver() {
 
             dashboard.classList.remove('hidden');
             loginUI.classList.add('hidden');
+            initOrdersSync();
             renderAdminStock();
             renderAdminAppointments();
             showAdminView('gestao');

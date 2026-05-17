@@ -30,6 +30,13 @@ function normalizeProduct(product = {}) {
     };
 }
 
+function sortProductsByName(products = []) {
+    return [...products].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'pt-BR', {
+        sensitivity: 'base',
+        numeric: true
+    }));
+}
+
 function applyProducts(products = []) {
     hasProductsLoaded = true;
     productsLoadFailed = false;
@@ -38,7 +45,7 @@ function applyProducts(products = []) {
         retryTimer = null;
     }
 
-    state.products = products.map(normalizeProduct).filter(product => product.id);
+    state.products = sortProductsByName(products.map(normalizeProduct).filter(product => product.id));
 
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
@@ -364,8 +371,7 @@ function renderShop() {
             return;
         }
 
-        const products = [...state.products]
-            .sort((a, b) => (a.name || "").localeCompare(b.name || "", 'pt-BR'))
+        const products = sortProductsByName(state.products)
             .filter(p => {
                 if (!showStock || !searchTerm) return true;
                 const name = String(p.name || '').toLowerCase();
@@ -504,9 +510,9 @@ function renderAdminStock(searchTerm = '') {
         return;
     }
     
-    const filtered = state.products.filter(p => 
+    const filtered = sortProductsByName(state.products.filter(p => 
         String(p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ));
 
     if (totalCountElement) {
         totalCountElement.textContent = `Total de Itens: ${filtered.length}`;
@@ -538,7 +544,7 @@ function renderAdminStock(searchTerm = '') {
 async function printLowStockReport() {
     if (!confirm("Deseja realmente gerar a lista de compras para reposição?")) return;
 
-    const lowStockItems = state.products.filter(p => parseInt(p.stock) <= 5);
+    const lowStockItems = sortProductsByName(state.products.filter(p => parseInt(p.stock) <= 5));
     if (lowStockItems.length === 0) {
         alert("O estoque está em dia! Nenhum item com 5 unidades ou menos.");
         return;

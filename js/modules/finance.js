@@ -2,16 +2,21 @@ import { state } from '../core/state.js';
 
 function renderChart() {
     const canvas = document.getElementById('revenueChart');
-    if (!canvas) return; // Importante: evita que o script trave se o gráfico não existir na página
-    const ctx = canvas.getContext('2d');
-    const filter = document.getElementById('revenue-filter').value;
-    const filterLabel = document.getElementById('revenue-filter').selectedOptions[0]?.textContent || 'Total';
+    const filterSelect = document.getElementById('revenue-filter');
+    const filter = filterSelect?.value || 'all';
+    const filterLabel = filterSelect?.selectedOptions[0]?.textContent || 'Total';
     
     let filteredOrders = state.serviceOrders;
     if (filter !== 'all') {
         filteredOrders = state.serviceOrders.filter(os => os.date.endsWith(filter));
     }
 
+    if (!canvas) {
+        updateFinanceSummary(filteredOrders, filterLabel);
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
     const dailyRevenue = filteredOrders.reduce((acc, os) => {
         acc[os.date] = (acc[os.date] || 0) + os.total;
         return acc;
@@ -60,6 +65,11 @@ function renderChart() {
     });
 
     updateFinanceSummary(filteredOrders, filterLabel);
+}
+
+function refreshFinanceDashboard() {
+    updateRevenueFilterOptions();
+    renderChart();
 }
 
 function updateFinanceSummary(filteredOrders, filterLabel) {
@@ -162,5 +172,5 @@ function updateRevenueFilterOptions() {
 
 
 
-export { renderChart, updateFinanceSummary, updateRevenueFilterOptions };
+export { renderChart, refreshFinanceDashboard, updateFinanceSummary, updateRevenueFilterOptions };
 

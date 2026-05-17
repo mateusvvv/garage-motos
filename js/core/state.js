@@ -13,6 +13,11 @@ function readStorageArray(key) {
     }
 }
 
+function readOrdersFromStorage() {
+    const syncedCache = readStorageArray('gm_orders_cache');
+    return syncedCache.length > 0 ? syncedCache : readStorageArray('gm_orders');
+}
+
 function normalizeOrder(order, index = 0) {
     const parts = Array.isArray(order?.parts) ? order.parts : [];
     const normalizedParts = parts.map(part => ({
@@ -46,7 +51,7 @@ function normalizeOrder(order, index = 0) {
 export const state = {
     products: [],
     openOrders: readStorageArray('gm_open_orders').map(normalizeOrder),
-    serviceOrders: readStorageArray('gm_orders').map(normalizeOrder),
+    serviceOrders: readOrdersFromStorage().map(normalizeOrder),
     appointmentRequests: [],
     pickerCalendar: null,
     tempSelectedDate: '',
