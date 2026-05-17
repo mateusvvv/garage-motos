@@ -59,10 +59,13 @@
                         </svg>
                     </a>
                     <!-- Botão Hamburger para o Menu do Site (Mobile) -->
-                    <button onclick="toggleMenu()" class="lg:hidden flex items-center justify-center text-white hover:text-red-600 transition font-black italic text-xs tracking-widest" title="Menu Principal">
+                    <button onclick="toggleMenu()" class="lg:hidden relative flex items-center justify-center text-white hover:text-red-600 transition font-black italic text-xs tracking-widest menu-shake-target" title="Menu Principal">
                         MENU
+                        <span id="menu-badge-mobile" class="hidden absolute -top-2 -right-2 w-4 h-4 bg-red-600 border border-neutral-950 rounded-full flex items-center justify-center text-[9px] text-white font-bold animate-pulse"></span>
                     </button>
-                    <button onclick="toggleAdmin()" class="hidden lg:block bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold text-xs uppercase transition shadow-lg shadow-red-600/20 tracking-widest">MENU</button>
+                    <button onclick="toggleAdmin()" class="hidden lg:block relative bg-red-600 hover:bg-red-700 px-4 py-2 rounded font-bold text-xs uppercase transition shadow-lg shadow-red-600/20 tracking-widest menu-shake-target">MENU
+                        <span id="menu-badge-desktop" class="hidden absolute -top-2 -right-2 w-4 h-4 bg-white border border-red-600 rounded-full flex items-center justify-center text-[9px] text-red-600 font-bold animate-pulse"></span>
+                    </button>
                 </div>
             </div>
         </nav>

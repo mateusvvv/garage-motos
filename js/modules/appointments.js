@@ -1,7 +1,7 @@
 import { auth, db } from '../../firebase-config.js';
 import { collection, addDoc, onSnapshot, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
-import { updateScrollLock, startAlarm } from './ui.js';
+import { updateScrollLock, startAlarm, updateMenuBadge } from './ui.js';
 
 function initCalendar() {
     const calendarEl = document.getElementById('calendar');
@@ -85,7 +85,7 @@ function initAppointmentsSync() {
             state.pickerCalendar.removeAllEvents();
             calendarEvents.forEach(ev => state.pickerCalendar.addEvent(ev));
         }
-        if (auth.currentUser) renderAdminAppointments();
+        renderAdminAppointments();
     });
 }
 
@@ -231,6 +231,7 @@ function renderAdminAppointments() {
     const requests = state.appointmentRequests.filter(e => e.type === 'request');
 
     if (totalSpan) totalSpan.textContent = `(${requests.length})`;
+    updateMenuBadge(requests.length);
     
     // Gerencia visibilidade do botão "Remover Todos" baseado no cargo e quantidade
     if (btnDeleteAll) {
@@ -283,4 +284,3 @@ async function deleteAllAppointments() {
 
 
 export { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments };
-

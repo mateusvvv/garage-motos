@@ -4,8 +4,7 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-
 import { state } from '../core/state.js';
 import { showAdminView } from './ui.js';
 import { renderAdminStock } from './products.js';
-import { renderAdminAppointments } from './appointments.js';
-import { initOrdersSync } from './orders.js';
+import { renderAdminAppointments, initAppointmentsSync } from './appointments.js';
 
 function clearLoginForm() {
     const loginForm = document.getElementById('login-form');
@@ -74,9 +73,9 @@ export function initAuthObserver() {
             const btnDeleteAll = document.getElementById('btn-delete-all');
             if (btnDeleteAll) btnDeleteAll.style.display = (state.currentUserRole === 'admin') ? 'block' : 'none';
 
+            initAppointmentsSync();
             dashboard.classList.remove('hidden');
             loginUI.classList.add('hidden');
-            initOrdersSync();
             renderAdminStock();
             renderAdminAppointments();
             showAdminView('gestao');

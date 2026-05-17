@@ -11,6 +11,7 @@ function updateScrollLock() {
 function toggleMenu() {
     const menu = document.getElementById('main-menu');
     menu.classList.toggle('hidden');
+    toggleMenuShakeAnimation(false); // Para a animação quando o menu é aberto
     updateScrollLock();
 }
 
@@ -26,6 +27,7 @@ function startAlarm() {
     const alertUI = document.getElementById('new-appointment-alert');
     if (alertUI) {
         alertUI.classList.remove('hidden');
+        toggleMenuShakeAnimation(true); // Inicia a animação de shake
         notificationSound.play().catch(e => console.log("Interação necessária para tocar som."));
     }
 }
@@ -35,6 +37,7 @@ function stopAlarm() {
     if (alertUI) {
         alertUI.classList.add('hidden');
         notificationSound.pause();
+        toggleMenuShakeAnimation(false); // Para a animação quando o alarme é desligado
         notificationSound.currentTime = 0; // Reseta o som para o início
     }
 }
@@ -95,5 +98,28 @@ function toggleShop() {
     updateScrollLock();
 }
 
+function updateMenuBadge(count) {
+    const mobileBadge = document.getElementById('menu-badge-mobile');
+    const desktopBadge = document.getElementById('menu-badge-desktop');
+    const displayCount = count > 9 ? '9+' : count;
+    
+    if (count > 0) {
+        mobileBadge?.classList.remove('hidden');
+        desktopBadge?.classList.remove('hidden');
+        if (mobileBadge) mobileBadge.textContent = displayCount;
+        if (desktopBadge) desktopBadge.textContent = displayCount;
+    } else {
+        mobileBadge?.classList.add('hidden');
+        desktopBadge?.classList.add('hidden');
+    }
+}
 
-export { updateScrollLock, toggleMenu, toggleAdmin, startAlarm, stopAlarm, toggleAdminNav, showAdminView, toggleShop };
+// Função para controlar a animação de shake dos botões de menu
+function toggleMenuShakeAnimation(enable) {
+    document.querySelectorAll('.menu-shake-target').forEach(button => {
+        if (enable) button.classList.add('animate-shake');
+        else button.classList.remove('animate-shake');
+    });
+}
+
+export { updateScrollLock, toggleMenu, toggleAdmin, startAlarm, stopAlarm, toggleAdminNav, showAdminView, toggleShop, updateMenuBadge, toggleMenuShakeAnimation };
