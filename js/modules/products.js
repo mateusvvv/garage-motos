@@ -380,25 +380,29 @@ function renderShop() {
             })
             .slice(0, limit);
 
-        el.innerHTML = products.map(p => `
-            <div class="bg-neutral-900 border border-neutral-800 rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full">
-                <div class="h-40 md:h-56 bg-neutral-800 flex items-center justify-center p-2 overflow-hidden">
+        el.innerHTML = products.map(p => {
+            const outOfStock = isOutOfStock(p.stock);
+            return `
+            <div class="${outOfStock ? 'bg-red-950/30 border-red-600/60' : 'bg-neutral-900 border-neutral-800'} border rounded-lg md:rounded-xl overflow-hidden product-card flex flex-col h-full relative">
+                ${outOfStock ? '<div class="absolute top-2 left-2 z-10 bg-red-600 text-white px-2 py-1 rounded text-[8px] md:text-[9px] font-black uppercase tracking-widest">Esgotado</div>' : ''}
+                <div class="h-40 md:h-56 ${outOfStock ? 'bg-red-950/40' : 'bg-neutral-800'} flex items-center justify-center p-2 overflow-hidden">
                     ${p.image ? 
-                        `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${escapeHtml(p.name)}">` :
+                        `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain ${outOfStock ? 'opacity-45 grayscale' : ''}" alt="${escapeHtml(p.name)}">` :
                         '<div class="text-neutral-600 font-bold uppercase tracking-widest text-[8px] md:text-xs text-center">Sem Foto</div>'
                     }
                 </div>
                 <div class="p-3 md:p-5 flex flex-col flex-grow">
                     <h5 class="product-card-name font-black text-[10px] md:text-xs uppercase mb-2">${escapeHtml(p.name)}</h5>
                     <p class="text-red-600 font-black text-sm md:text-2xl ${showStock ? 'mb-1' : 'mb-3 md:mb-4'}">R$ ${Number(p.price || 0).toFixed(2)}</p>
-                    ${showStock ? `<p class="text-[10px] md:text-xs text-neutral-400 uppercase tracking-widest font-bold mb-3 md:mb-4">${formatStockLabel(p.stock)}</p>` : ''}
+                    ${showStock ? `<p class="text-[10px] md:text-xs ${outOfStock ? 'text-red-400' : 'text-neutral-400'} uppercase tracking-widest font-bold mb-3 md:mb-4">${outOfStock ? 'Acabou - precisa repor' : formatStockLabel(p.stock)}</p>` : ''}
                     <button onclick="window.reserveProduct('${p.id}')" 
-                       class="mt-auto w-full bg-white text-black py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center hover:bg-red-600 hover:text-white transition cursor-pointer">
-                       Reservar para Retirada
+                       class="mt-auto w-full ${outOfStock ? 'bg-red-600/20 text-red-300 border border-red-600/50 cursor-not-allowed' : 'bg-white text-black hover:bg-red-600 hover:text-white cursor-pointer'} py-2 rounded font-bold uppercase text-[10px] md:text-xs text-center transition">
+                       ${outOfStock ? 'Sem Estoque' : 'Reservar para Retirada'}
                     </button>
                 </div>
             </div>
-        `).join('') || `
+        `;
+        }).join('') || `
             <p class="col-span-full text-center text-neutral-500 text-xs uppercase font-bold tracking-[0.2em] py-16">
                 ${searchTerm ? 'Nenhum item encontrado para essa busca.' : 'Nenhum item cadastrado no estoque.'}
             </p>
@@ -481,6 +485,10 @@ function formatStockLabel(stock) {
     return `${quantity} ${quantity === 1 ? 'unidade disponível' : 'unidades disponíveis'}`;
 }
 
+function isOutOfStock(stock) {
+    return (Number.parseInt(stock, 10) || 0) <= 0;
+}
+
 function renderAdminStock(searchTerm = '') {
     const container = document.getElementById('admin-stock-list');
     const totalCountElement = document.getElementById('stock-total-count');
@@ -520,15 +528,19 @@ function renderAdminStock(searchTerm = '') {
 
     const isAdmin = state.currentUserRole === 'admin';
 
-    container.innerHTML = filtered.map(p => `
-        <div class="flex items-center justify-between p-4 border-b border-neutral-800 hover:bg-black/30 transition rounded">
+    container.innerHTML = filtered.map(p => {
+        const outOfStock = isOutOfStock(p.stock);
+        return `
+        <div class="flex items-center justify-between p-4 border ${outOfStock ? 'border-red-600/50 bg-red-950/30' : 'border-neutral-800 hover:bg-black/30'} transition rounded">
             <div class="flex items-center gap-4 overflow-hidden">
-                <div class="w-12 h-12 flex-shrink-0 bg-neutral-800 rounded flex items-center justify-center overflow-hidden">
-                    ${p.image ? `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain" alt="${escapeHtml(p.name)}">` : ''}
+                <div class="w-12 h-12 flex-shrink-0 ${outOfStock ? 'bg-red-950 border border-red-600/40' : 'bg-neutral-800'} rounded flex items-center justify-center overflow-hidden">
+                    ${p.image ? `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain ${outOfStock ? 'opacity-45 grayscale' : ''}" alt="${escapeHtml(p.name)}">` : ''}
                 </div>
                 <div class="truncate">
-                    <p class="font-bold text-xs md:text-sm uppercase truncate">${escapeHtml(p.name)}</p>
-                    <p class="text-[11px] md:text-xs text-neutral-500 uppercase tracking-tighter">Qtd: ${Number.parseInt(p.stock, 10) || 0} | R$ ${Number(p.price || 0).toFixed(2)} ${p.location ? `| Loc: ${escapeHtml(p.location)}` : ''}</p>
+                    <p class="font-bold text-xs md:text-sm uppercase truncate ${outOfStock ? 'text-red-200' : ''}">${escapeHtml(p.name)}</p>
+                    <p class="text-[11px] md:text-xs ${outOfStock ? 'text-red-400 font-black' : 'text-neutral-500'} uppercase tracking-tighter">
+                        ${outOfStock ? 'Acabou - precisa repor' : `Qtd: ${Number.parseInt(p.stock, 10) || 0}`} | R$ ${Number(p.price || 0).toFixed(2)} ${p.location ? `| Loc: ${escapeHtml(p.location)}` : ''}
+                    </p>
                 </div>
             </div>
             ${isAdmin ? `
@@ -538,7 +550,8 @@ function renderAdminStock(searchTerm = '') {
                 </div>
             ` : ''}
         </div>
-    `).join('') || '<p class="text-center text-neutral-600 text-xs uppercase font-bold py-4">Estoque Vazio</p>';
+    `;
+    }).join('') || '<p class="text-center text-neutral-600 text-xs uppercase font-bold py-4">Estoque Vazio</p>';
 }
 
 async function printLowStockReport() {
