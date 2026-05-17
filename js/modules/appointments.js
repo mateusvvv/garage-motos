@@ -159,6 +159,14 @@ async function scheduleService(e) {
     const datePart = document.getElementById('service-date-only').value;
     const consent = document.getElementById('privacy-consent')?.checked;
 
+    // Validação de Telefone (Brasil: DDD + Número)
+    const cleanPhone = phone.replace(/\D/g, '');
+    const phoneRegex = /^[1-9]{2}9?[0-9]{8}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+        alert("Por favor, insira um telefone válido com DDD (ex: 81 98765-4321).");
+        return;
+    }
+
     if (!consent) {
         alert("Para prosseguir, é necessário aceitar o uso de dados para o agendamento.");
         return;
@@ -180,7 +188,7 @@ async function scheduleService(e) {
             start: datePart,
             color: '#e11d48',
             clientName: name,
-            clientPhone: phone,
+            clientPhone: cleanPhone,
             bikeInfo: bike,
             createdAt: new Date().toISOString(),
             type: 'request'

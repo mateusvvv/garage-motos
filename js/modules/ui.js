@@ -124,4 +124,11 @@ function toggleMenuShakeAnimation(enable) {
     });
 }
 
+// Exposição Global para botões HTML
+window.toggleMenu = toggleMenu;
+window.toggleAdmin = toggleAdmin;
+window.stopAlarm = stopAlarm;
+window.showAdminView = showAdminView;
+window.toggleShop = toggleShop;
+
 export { updateScrollLock, toggleMenu, toggleAdmin, startAlarm, stopAlarm, toggleAdminNav, showAdminView, toggleShop, updateMenuBadge, toggleMenuShakeAnimation };

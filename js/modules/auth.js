@@ -2,9 +2,10 @@ import { auth, db } from '../../firebase-config.js';
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
-import { showAdminView } from './ui.js';
+import { showAdminView, updateMenuBadge } from './ui.js';
 import { renderAdminStock } from './products.js';
 import { renderAdminAppointments, initAppointmentsSync } from './appointments.js';
+import { initOrdersSync } from './orders.js';
 
 function handleBeforeUnload(e) {
     e.preventDefault();
@@ -80,6 +81,7 @@ export function initAuthObserver() {
             if (btnDeleteAll) btnDeleteAll.style.display = (state.currentUserRole === 'admin') ? 'block' : 'none';
 
             initAppointmentsSync();
+            initOrdersSync();
             dashboard.classList.remove('hidden');
             loginUI.classList.add('hidden');
             renderAdminStock();
@@ -90,7 +92,10 @@ export function initAuthObserver() {
             dashboard.classList.add('hidden');
             loginUI.classList.remove('hidden');
             clearLoginForm();
+            updateMenuBadge(0);
             window.removeEventListener('beforeunload', handleBeforeUnload);
         }
     });
 }
+
+window.logoutAdmin = logoutAdmin;

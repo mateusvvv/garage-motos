@@ -2,6 +2,12 @@ import { state } from '../core/state.js';
 
 function renderChart() {
     const canvas = document.getElementById('revenueChart');
+    if (!canvas) {
+        const filterSelect = document.getElementById('revenue-filter');
+        updateFinanceSummary(state.serviceOrders, filterSelect?.selectedOptions[0]?.textContent || 'Total');
+        return;
+    }
+    const ctx = canvas.getContext('2d');
     const filterSelect = document.getElementById('revenue-filter');
     const filter = filterSelect?.value || 'all';
     const filterLabel = filterSelect?.selectedOptions[0]?.textContent || 'Total';
@@ -11,55 +17,59 @@ function renderChart() {
         filteredOrders = state.serviceOrders.filter(os => os.date.endsWith(filter));
     }
 
-    if (!canvas) {
-        updateFinanceSummary(filteredOrders, filterLabel);
-        return;
-    }
-
-    const ctx = canvas.getContext('2d');
-    const dailyRevenue = filteredOrders.reduce((acc, os) => {
-        acc[os.date] = (acc[os.date] || 0) + os.total;
+    const dailyData = filteredOrders.reduce((acc, os) => {
+        if (!acc[os.date]) acc[os.date] = { pix: 0, avista: 0, cartao: 0 };
+        const method = os.paymentMethod || 'pix';
+        acc[os.date][method] = (acc[os.date][method] || 0) + os.total;
         return acc;
     }, {});
 
-    const labels = Object.keys(dailyRevenue).sort((a, b) => {
+    const labels = Object.keys(dailyData).sort((a, b) => {
         const [da, ma, ya] = a.split('/').map(Number);
         const [db, mb, yb] = b.split('/').map(Number);
         return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
     });
-    const data = labels.map(l => dailyRevenue[l]);
 
     if (state.revenueChart) state.revenueChart.destroy();
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-    gradient.addColorStop(0, 'rgba(225, 29, 72, 0.4)');
-    gradient.addColorStop(1, 'rgba(225, 29, 72, 0)');
-
     state.revenueChart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Faturamento Total (R$)',
-                data: data,
-                borderColor: '#e11d48',
-                backgroundColor: gradient,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#e11d48',
-                pointRadius: 4,
-                borderWidth: 2
-            }]
+            datasets: [
+                {
+                    label: 'Pix',
+                    data: labels.map(l => dailyData[l].pix),
+                    backgroundColor: '#a855f7',
+                    borderRadius: 4
+                },
+                {
+                    label: 'Espécie',
+                    data: labels.map(l => dailyData[l].avista),
+                    backgroundColor: '#22c55e',
+                    borderRadius: 4
+                },
+                {
+                    label: 'Cartão',
+                    data: labels.map(l => dailyData[l].cartao),
+                    backgroundColor: '#3b82f6',
+                    borderRadius: 4
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
-                y: { beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#737373', font: { size: 10 } } },
-                x: { grid: { display: false }, ticks: { color: '#737373', font: { size: 10 } } }
+                y: { stacked: true, beginAtZero: true, grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#737373', font: { size: 10 } } },
+                x: { stacked: true, grid: { display: false }, ticks: { color: '#737373', font: { size: 10 } } }
             },
             plugins: {
-                legend: { display: false }
+                legend: { 
+                    display: true, 
+                    position: 'top',
+                    labels: { color: '#737373', font: { size: 10 }, usePointStyle: true }
+                }
             }
         }
     });
@@ -115,10 +125,10 @@ function updateFinanceSummary(filteredOrders, filterLabel) {
         </div>
         <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
             <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">Pix</p>
-            <p class="text-green-500 font-black text-lg italic">R$ ${stats.pix.toFixed(2)}</p>
+            <p class="text-purple-500 font-black text-lg italic">R$ ${stats.pix.toFixed(2)}</p>
         </div>
         <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
-            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">À Vista</p>
+            <p class="text-[9px] text-neutral-500 font-black uppercase tracking-widest mb-1">Espécie</p>
             <p class="text-green-500 font-black text-lg italic">R$ ${stats.avista.toFixed(2)}</p>
         </div>
         <div class="bg-black/40 border border-neutral-800 p-4 rounded-xl">
@@ -173,4 +183,3 @@ function updateRevenueFilterOptions() {
 
 
 export { renderChart, refreshFinanceDashboard, updateFinanceSummary, updateRevenueFilterOptions };
-

@@ -52,6 +52,7 @@ function normalizeSyncedOrder(order = {}, fallbackId = '') {
 
 function refreshOrdersUI() {
     renderHistory();
+    renderOpenOrders();
     renderClosedOrders();
     renderAdminStock();
     refreshFinanceDashboard();
@@ -86,9 +87,11 @@ function initOrdersSync() {
             refreshOrdersUI();
             return;
         }
+
         state.serviceOrders = snapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
         try {
             localStorage.setItem('gm_orders_cache', JSON.stringify(state.serviceOrders));
+            localStorage.setItem('gm_orders', JSON.stringify(state.serviceOrders));
         } catch (_) {}
         refreshOrdersUI();
     }, (error) => {
@@ -532,18 +535,15 @@ async function downloadOSPDF(osOrId) {
 
 function saveAndRefresh() {
     try {
-        localStorage.setItem('gm_open_orders', JSON.stringify(state.openOrders));
+        localStorage.setItem('gm_orders', JSON.stringify(state.serviceOrders));
         localStorage.setItem('gm_orders_cache', JSON.stringify(state.serviceOrders));
+        localStorage.setItem('gm_open_orders', JSON.stringify(state.openOrders));
     } catch (e) {
         console.error("Erro ao salvar no LocalStorage: Provavelmente o limite de 5MB foi atingido devido às fotos.");
         alert("Atenção: O limite de armazenamento de fotos foi atingido. Tente usar fotos menores ou remova itens antigos.");
     }
     
-    renderHistory();
-    renderOpenOrders();
-    renderClosedOrders();
-    renderAdminStock();
-    refreshFinanceDashboard();
+    refreshOrdersUI();
 }
 
 function renderHistory() {
@@ -743,5 +743,16 @@ function deleteOpenOS(id) {
     saveAndRefresh();
 }
 
+// Exposição Global para botões HTML
+window.addPartRow = addPartRow;
+window.applyOSDiscount = applyOSDiscount;
+window.saveOSDraft = saveOSDraft;
+window.finalizeOS = finalizeOS;
+window.loadOSDraft = loadOSDraft;
+window.editOS = editOS;
+window.deleteOS = deleteOS;
+window.clearOSHistory = clearOSHistory;
+window.deleteOpenOS = deleteOpenOS;
+window.downloadOSPDF = downloadOSPDF;
 
 export { addPartRow, updateDiscountTargets, applyOSDiscount, getOSFormData, initOrdersSync, saveOSDraft, finalizeOS, getNextOSNumber, formatOSNumber, downloadOSPDF, saveAndRefresh, renderHistory, renderOpenOrders, renderClosedOrders, loadOSDraft, editOS, resetOSForm, deleteOS, clearOSHistory, deleteOpenOS };
