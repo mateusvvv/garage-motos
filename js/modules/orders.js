@@ -1,5 +1,5 @@
 import { db } from '../../firebase-config.js';
-import { collection, deleteDoc, doc, getDocs, onSnapshot, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, deleteDoc, doc, getDocs, getDocsFromServer, onSnapshot, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { loadImageForPDF } from '../core/utils.js';
 import { decrementProductsStock, renderAdminStock } from './products.js';
@@ -8,10 +8,13 @@ import { showAdminView } from './ui.js';
 
 let isFinalizingOS = false;
 let ordersSyncStarted = false;
+let ordersFallbackTimer = null;
+let ordersRefreshInProgress = false;
 const SERVICE_ORDERS_COLLECTION = 'serviceOrders';
 const OPEN_ORDERS_COLLECTION = 'openOrders';
 const ORDERS_MIGRATION_KEY = 'gm_orders_firebase_migrated_v1';
 const OPEN_ORDERS_MIGRATION_KEY = 'gm_open_orders_firebase_migrated_v1';
+const ORDERS_FALLBACK_REFRESH_INTERVAL = 15000;
 
 function escapeHtml(value = '') {
     return String(value)
@@ -60,6 +63,14 @@ function refreshOrdersUI() {
     refreshFinanceDashboard();
 }
 
+function persistOrdersCache() {
+    try {
+        localStorage.setItem('gm_orders_cache', JSON.stringify(state.serviceOrders));
+        localStorage.setItem('gm_orders', JSON.stringify(state.serviceOrders));
+        localStorage.setItem('gm_open_orders', JSON.stringify(state.openOrders));
+    } catch (_) {}
+}
+
 async function migrateLocalOrdersIfNeeded(snapshot) {
     if (!snapshot.empty || localStorage.getItem(ORDERS_MIGRATION_KEY) === 'true') return false;
 
@@ -95,6 +106,7 @@ async function migrateLocalOpenOrdersIfNeeded(snapshot) {
 function initOrdersSync() {
     if (ordersSyncStarted) {
         refreshOrdersUI();
+        refreshOrdersFromServer();
         return;
     }
     ordersSyncStarted = true;
@@ -107,10 +119,7 @@ function initOrdersSync() {
         }
 
         state.serviceOrders = snapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
-        try {
-            localStorage.setItem('gm_orders_cache', JSON.stringify(state.serviceOrders));
-            localStorage.setItem('gm_orders', JSON.stringify(state.serviceOrders));
-        } catch (_) {}
+        persistOrdersCache();
         refreshOrdersUI();
     }, (error) => {
         console.error('Erro ao sincronizar O.S com o Firestore:', error);
@@ -125,13 +134,57 @@ function initOrdersSync() {
         }
 
         state.openOrders = snapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
-        try {
-            localStorage.setItem('gm_open_orders', JSON.stringify(state.openOrders));
-        } catch (_) {}
+        persistOrdersCache();
         refreshOrdersUI();
     }, (error) => {
         console.error('Erro ao sincronizar O.S em aberto com o Firestore:', error);
         refreshOrdersUI();
+    });
+
+    startOrdersFallbackRefresh();
+    setTimeout(() => refreshOrdersFromServer(), 5000);
+}
+
+async function refreshOrdersFromServer() {
+    if (ordersRefreshInProgress) return;
+    ordersRefreshInProgress = true;
+
+    try {
+        const [serviceSnapshot, openSnapshot] = await Promise.all([
+            getDocsFromServer(collection(db, SERVICE_ORDERS_COLLECTION)),
+            getDocsFromServer(collection(db, OPEN_ORDERS_COLLECTION))
+        ]);
+
+        const migratedServiceOrders = await migrateLocalOrdersIfNeeded(serviceSnapshot);
+        const migratedOpenOrders = await migrateLocalOpenOrdersIfNeeded(openSnapshot);
+
+        if (!migratedServiceOrders) {
+            state.serviceOrders = serviceSnapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
+        }
+
+        if (!migratedOpenOrders) {
+            state.openOrders = openSnapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
+        }
+
+        persistOrdersCache();
+        refreshOrdersUI();
+    } catch (error) {
+        console.warn('Atualização de segurança das O.S falhou:', error);
+    } finally {
+        ordersRefreshInProgress = false;
+    }
+}
+
+function startOrdersFallbackRefresh() {
+    if (ordersFallbackTimer) return;
+
+    ordersFallbackTimer = setInterval(() => {
+        if (!document.hidden) refreshOrdersFromServer();
+    }, ORDERS_FALLBACK_REFRESH_INTERVAL);
+
+    window.addEventListener('focus', () => refreshOrdersFromServer());
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) setTimeout(() => refreshOrdersFromServer(), 250);
     });
 }
 
