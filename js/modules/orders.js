@@ -9,7 +9,9 @@ import { showAdminView } from './ui.js';
 let isFinalizingOS = false;
 let ordersSyncStarted = false;
 const SERVICE_ORDERS_COLLECTION = 'serviceOrders';
+const OPEN_ORDERS_COLLECTION = 'openOrders';
 const ORDERS_MIGRATION_KEY = 'gm_orders_firebase_migrated_v1';
+const OPEN_ORDERS_MIGRATION_KEY = 'gm_open_orders_firebase_migrated_v1';
 
 function escapeHtml(value = '') {
     return String(value)
@@ -74,6 +76,22 @@ async function migrateLocalOrdersIfNeeded(snapshot) {
     return true;
 }
 
+async function migrateLocalOpenOrdersIfNeeded(snapshot) {
+    if (!snapshot.empty || localStorage.getItem(OPEN_ORDERS_MIGRATION_KEY) === 'true') return false;
+
+    const localOpenOrders = state.openOrders.filter(order => order?.id);
+    localStorage.setItem(OPEN_ORDERS_MIGRATION_KEY, 'true');
+    if (localOpenOrders.length === 0) return false;
+
+    const batch = writeBatch(db);
+    localOpenOrders.forEach(order => {
+        const normalized = normalizeSyncedOrder(order, order.id);
+        batch.set(doc(db, OPEN_ORDERS_COLLECTION, String(normalized.id)), normalized);
+    });
+    await batch.commit();
+    return true;
+}
+
 function initOrdersSync() {
     if (ordersSyncStarted) {
         refreshOrdersUI();
@@ -98,10 +116,35 @@ function initOrdersSync() {
         console.error('Erro ao sincronizar O.S com o Firestore:', error);
         refreshOrdersUI();
     });
+
+    onSnapshot(collection(db, OPEN_ORDERS_COLLECTION), async (snapshot) => {
+        const migrated = await migrateLocalOpenOrdersIfNeeded(snapshot);
+        if (migrated) {
+            refreshOrdersUI();
+            return;
+        }
+
+        state.openOrders = snapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
+        try {
+            localStorage.setItem('gm_open_orders', JSON.stringify(state.openOrders));
+        } catch (_) {}
+        refreshOrdersUI();
+    }, (error) => {
+        console.error('Erro ao sincronizar O.S em aberto com o Firestore:', error);
+        refreshOrdersUI();
+    });
 }
 
 async function saveServiceOrder(osData) {
     await setDoc(doc(db, SERVICE_ORDERS_COLLECTION, String(osData.id)), osData);
+}
+
+async function saveOpenOrder(orderData) {
+    await setDoc(doc(db, OPEN_ORDERS_COLLECTION, String(orderData.id)), orderData);
+}
+
+async function deleteOpenOrderFromCloud(id) {
+    await deleteDoc(doc(db, OPEN_ORDERS_COLLECTION, String(id)));
 }
 
 function addPartRow(name = '', price = '', productId = '') {
@@ -293,7 +336,7 @@ function getOSFormData() {
 }
 
 // ETAPA 1: Salvar Rascunho
-function saveOSDraft(e) {
+async function saveOSDraft(e) {
     if(e) e.preventDefault();
     const data = getOSFormData();
     
@@ -309,9 +352,16 @@ function saveOSDraft(e) {
         state.openOrders[index] = data;
     }
 
-    saveAndRefresh();
-    resetOSForm();
-    alert("Rascunho salvo com sucesso!");
+    try {
+        await saveOpenOrder(data);
+        saveAndRefresh();
+        resetOSForm();
+        alert("Rascunho salvo com sucesso!");
+    } catch (error) {
+        console.error('Erro ao salvar O.S em aberto no Firestore:', error);
+        saveAndRefresh();
+        alert("Rascunho salvo neste aparelho, mas não foi possível sincronizar com a nuvem.");
+    }
 }
 
 // ETAPA 2: Finalizar O.S
@@ -355,6 +405,7 @@ async function finalizeOS() {
 
         // Remove dos rascunhos se estiver lá
         state.openOrders = state.openOrders.filter(o => o.id !== data.id);
+        await deleteOpenOrderFromCloud(data.id).catch(() => {});
         saveAndRefresh();
         resetOSForm();
     } catch (error) {
@@ -737,10 +788,16 @@ async function clearOSHistory() {
     }
 }
 
-function deleteOpenOS(id) {
+async function deleteOpenOS(id) {
     if (!confirm('Deseja descartar este rascunho?')) return;
-    state.openOrders = state.openOrders.filter(o => o.id !== id);
-    saveAndRefresh();
+    try {
+        await deleteOpenOrderFromCloud(id);
+        state.openOrders = state.openOrders.filter(o => o.id !== id);
+        saveAndRefresh();
+    } catch (error) {
+        console.error('Erro ao excluir O.S em aberto no Firestore:', error);
+        alert('Não foi possível excluir este rascunho. Verifique sua conexão.');
+    }
 }
 
 // Exposição Global para botões HTML

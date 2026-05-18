@@ -36,6 +36,10 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /openOrders/{orderId} {
+      allow read, create, update, delete: if isTeamMember();
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow write: if isAdmin();
