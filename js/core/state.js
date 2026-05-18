@@ -26,13 +26,24 @@ function normalizeOrder(order, index = 0) {
         price: Number(part?.price || 0),
         productId: String(part?.productId || '')
     }));
-    const normalizedServices = services.map(service => ({
+    let normalizedServices = services.map(service => ({
         name: String(service?.name || ''),
-        price: Number(service?.price || 0)
+        price: Number(service?.price || 0),
+        mechanic: service?.mechanic || order?.mechanic || 'leo',
+        paymentMethod: service?.paymentMethod || order?.paymentMethod || 'pix'
     }));
+    const legacyLabor = Number(order?.labor || 0);
+    if (normalizedServices.length === 0 && legacyLabor > 0) {
+        normalizedServices = [{
+            name: 'Mão de Obra',
+            price: legacyLabor,
+            mechanic: order?.mechanic || 'leo',
+            paymentMethod: order?.paymentMethod || 'pix'
+        }];
+    }
     const partsTotal = Number(order?.partsTotal ?? normalizedParts.reduce((sum, part) => sum + part.price, 0));
     const servicesTotal = Number(order?.servicesTotal ?? normalizedServices.reduce((sum, service) => sum + service.price, 0));
-    const labor = Number(order?.labor || 0);
+    const labor = normalizedServices.length > 0 ? 0 : legacyLabor;
     const total = Number(order?.total ?? labor + servicesTotal + partsTotal);
     const id = Number(order?.id) || Date.now() + index;
 
@@ -42,8 +53,8 @@ function normalizeOrder(order, index = 0) {
         client: String(order?.client || ''),
         bike: String(order?.bike || ''),
         observations: String(order?.observations || ''),
-        mechanic: order?.mechanic || 'leo',
-        paymentMethod: order?.paymentMethod || 'pix',
+        mechanic: normalizedServices[0]?.mechanic || order?.mechanic || 'leo',
+        paymentMethod: normalizedServices[0]?.paymentMethod || order?.paymentMethod || 'pix',
         labor,
         services: normalizedServices,
         servicesTotal,

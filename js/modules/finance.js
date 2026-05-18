@@ -1,5 +1,19 @@
 import { state } from '../core/state.js';
 
+function getPaymentBreakdown(os = {}) {
+    const breakdown = { pix: 0, avista: 0, cartao: 0 };
+    const services = Array.isArray(os.services) ? os.services : [];
+
+    services.forEach(service => {
+        const method = service.paymentMethod || os.paymentMethod || 'pix';
+        breakdown[method] = (breakdown[method] || 0) + Number(service.price || 0);
+    });
+
+    const partsPaymentMethod = os.paymentMethod || services[0]?.paymentMethod || 'pix';
+    breakdown[partsPaymentMethod] = (breakdown[partsPaymentMethod] || 0) + Number(os.partsTotal || 0);
+    return breakdown;
+}
+
 function renderChart() {
     const canvas = document.getElementById('revenueChart');
     if (!canvas) {
@@ -19,8 +33,10 @@ function renderChart() {
 
     const dailyData = filteredOrders.reduce((acc, os) => {
         if (!acc[os.date]) acc[os.date] = { pix: 0, avista: 0, cartao: 0 };
-        const method = os.paymentMethod || 'pix';
-        acc[os.date][method] = (acc[os.date][method] || 0) + os.total;
+        const breakdown = getPaymentBreakdown(os);
+        acc[os.date].pix += breakdown.pix;
+        acc[os.date].avista += breakdown.avista;
+        acc[os.date].cartao += breakdown.cartao;
         return acc;
     }, {});
 
@@ -88,14 +104,17 @@ function updateFinanceSummary(filteredOrders, filterLabel) {
 
     const calcStats = (orders) => {
         return orders.reduce((acc, os) => {
-            const serviceLaborTotal = (os.labor || 0) + (os.servicesTotal || 0);
-            if (os.mechanic === 'leo') acc.leo += serviceLaborTotal;
-            if (os.mechanic === 'wandson') acc.wandson += serviceLaborTotal;
+            const services = Array.isArray(os.services) ? os.services : [];
+            services.forEach(service => {
+                if (service.mechanic === 'leo') acc.leo += Number(service.price || 0);
+                if (service.mechanic === 'wandson') acc.wandson += Number(service.price || 0);
+            });
             acc.parts += (os.partsTotal || 0);
-            
-            if (os.paymentMethod === 'pix') acc.pix += (os.total || 0);
-            else if (os.paymentMethod === 'avista') acc.avista += (os.total || 0);
-            else if (os.paymentMethod === 'cartao') acc.cartao += (os.total || 0);
+
+            const breakdown = getPaymentBreakdown(os);
+            acc.pix += breakdown.pix;
+            acc.avista += breakdown.avista;
+            acc.cartao += breakdown.cartao;
             
             acc.total += (os.total || 0);
             return acc;

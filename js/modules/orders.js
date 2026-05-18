@@ -33,13 +33,24 @@ function normalizeSyncedOrder(order = {}, fallbackId = '') {
         price: Number(part?.price || 0),
         productId: String(part?.productId || '')
     }));
-    const normalizedServices = services.map(service => ({
+    let normalizedServices = services.map(service => ({
         name: String(service?.name || ''),
-        price: Number(service?.price || 0)
+        price: Number(service?.price || 0),
+        mechanic: service?.mechanic || order.mechanic || 'leo',
+        paymentMethod: service?.paymentMethod || order.paymentMethod || 'pix'
     }));
+    const legacyLabor = Number(order.labor || 0);
+    if (normalizedServices.length === 0 && legacyLabor > 0) {
+        normalizedServices = [{
+            name: 'Mão de Obra',
+            price: legacyLabor,
+            mechanic: order.mechanic || 'leo',
+            paymentMethod: order.paymentMethod || 'pix'
+        }];
+    }
     const partsTotal = Number(order.partsTotal ?? normalizedParts.reduce((sum, part) => sum + part.price, 0));
     const servicesTotal = Number(order.servicesTotal ?? normalizedServices.reduce((sum, service) => sum + service.price, 0));
-    const labor = Number(order.labor || 0);
+    const labor = normalizedServices.length > 0 ? 0 : legacyLabor;
 
     return {
         ...order,
@@ -49,8 +60,8 @@ function normalizeSyncedOrder(order = {}, fallbackId = '') {
         client: String(order.client || ''),
         bike: String(order.bike || ''),
         observations: String(order.observations || ''),
-        mechanic: order.mechanic || 'leo',
-        paymentMethod: order.paymentMethod || 'pix',
+        mechanic: normalizedServices[0]?.mechanic || order.mechanic || 'leo',
+        paymentMethod: normalizedServices[0]?.paymentMethod || order.paymentMethod || 'pix',
         labor,
         services: normalizedServices,
         servicesTotal,
@@ -226,15 +237,24 @@ function addPartRow(name = '', price = '', productId = '') {
     updateDiscountTargets();
 }
 
-function addServiceRow(name = '', price = '') {
+function addServiceRow(name = '', price = '', mechanic = 'leo', paymentMethod = 'pix') {
     const container = document.getElementById('os-services-container');
     if (!container) return;
 
     const div = document.createElement('div');
-    div.className = 'flex gap-2 items-center os-service-row';
+    div.className = 'grid grid-cols-1 md:grid-cols-[minmax(150px,1fr)_minmax(95px,110px)_minmax(115px,120px)_minmax(115px,120px)_auto] gap-2 items-center os-service-row';
     div.innerHTML = `
-        <input type="text" placeholder="Tipo de Serviço" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm service-name" value="${escapeHtml(name)}" autocomplete="off">
-        <input type="number" step="0.01" placeholder="R$" class="w-20 md:w-24 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm service-price" value="${escapeHtml(price)}">
+        <input type="text" placeholder="Tipo de Serviço" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs service-name" value="${escapeHtml(name)}" autocomplete="off">
+        <input type="number" step="0.01" placeholder="R$" class="w-full min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs service-price" value="${escapeHtml(price)}">
+        <select class="w-full min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs outline-none focus:border-red-600 transition service-mechanic">
+            <option value="leo" ${mechanic === 'leo' ? 'selected' : ''}>Léo</option>
+            <option value="wandson" ${mechanic === 'wandson' ? 'selected' : ''}>Wandson</option>
+        </select>
+        <select class="w-full min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs outline-none focus:border-red-600 transition service-payment">
+            <option value="pix" ${paymentMethod === 'pix' ? 'selected' : ''}>Pix</option>
+            <option value="avista" ${paymentMethod === 'avista' ? 'selected' : ''}>Espécie</option>
+            <option value="cartao" ${paymentMethod === 'cartao' ? 'selected' : ''}>Cartão</option>
+        </select>
         <button type="button" onclick="this.parentElement.remove(); updateDiscountTargets();" class="text-neutral-600 hover:text-red-500 p-1">✕</button>
     `;
     container.appendChild(div);
@@ -313,11 +333,6 @@ function updateDiscountTargets() {
     const serviceRows = Array.from(document.querySelectorAll('.os-service-row'));
     targetSelect.innerHTML = '';
 
-    const laborOption = document.createElement('option');
-    laborOption.value = 'labor';
-    laborOption.textContent = 'Mão de Obra';
-    targetSelect.appendChild(laborOption);
-
     serviceRows.forEach((row, index) => {
         const name = row.querySelector('.service-name').value.trim() || `Serviço ${index + 1}`;
         const option = document.createElement('option');
@@ -350,7 +365,7 @@ function applyOSDiscount() {
         return;
     }
 
-    let targetInput = document.getElementById('os-labor');
+    let targetInput = null;
     if (target.startsWith('service-')) {
         targetInput = document.querySelectorAll('.os-service-row')[parseInt(target.replace('service-', ''), 10)]?.querySelector('.service-price');
     } else if (target.startsWith('part-')) {
@@ -371,9 +386,7 @@ function applyOSDiscount() {
 
     targetInput.value = newValue.toFixed(2);
     state.currentOSDiscounts.push({
-        target: target === 'labor'
-            ? 'Mão de Obra'
-            : document.getElementById('os-discount-target').selectedOptions[0]?.textContent || 'Item',
+        target: document.getElementById('os-discount-target').selectedOptions[0]?.textContent || 'Item',
         type,
         value: discountValue,
         amount: appliedAmount
@@ -388,9 +401,7 @@ function getOSFormData() {
     const client = document.getElementById('os-client').value;
     const bike = document.getElementById('os-bike').value;
     const observations = document.getElementById('os-observations').value;
-    const mechanic = document.getElementById('os-mechanic').value;
-    const paymentMethod = document.getElementById('os-payment').value;
-    const labor = parseFloat(document.getElementById('os-labor').value) || 0;
+    const labor = 0;
     
     const serviceRows = document.querySelectorAll('.os-service-row');
     const services = [];
@@ -399,8 +410,10 @@ function getOSFormData() {
     serviceRows.forEach(row => {
         const name = row.querySelector('.service-name').value;
         const price = parseFloat(row.querySelector('.service-price').value) || 0;
+        const mechanic = row.querySelector('.service-mechanic')?.value || 'leo';
+        const paymentMethod = row.querySelector('.service-payment')?.value || 'pix';
         if (name || price > 0) {
-            services.push({ name, price });
+            services.push({ name, price, mechanic, paymentMethod });
             servicesTotal += price;
         }
     });
@@ -425,14 +438,14 @@ function getOSFormData() {
         client,
         bike,
         observations,
-        mechanic,
-        paymentMethod,
+        mechanic: services[0]?.mechanic || 'leo',
+        paymentMethod: services[0]?.paymentMethod || 'pix',
         labor,
         services,
         servicesTotal,
         parts,
         partsTotal,
-        total: labor + servicesTotal + partsTotal,
+        total: servicesTotal + partsTotal,
         discounts: [...state.currentOSDiscounts],
         discountTotal: state.currentOSDiscounts.reduce((sum, d) => sum + Number(d.amount || 0), 0)
     };
@@ -613,15 +626,13 @@ async function downloadOSPDF(osOrId) {
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
     doc.setFont(undefined, 'normal');
-    doc.text('Mao de obra', 20, y);
-    doc.text(money(os.labor), 186, y, { align: 'right' });
-    doc.setDrawColor(235, 235, 235);
-    doc.line(20, y + 5, 190, y + 5);
-    y += 13;
 
     if (services.length > 0) {
         services.forEach(service => {
-            const name = String(service.name || 'Servico').toUpperCase();
+            const paymentLabels = { pix: 'PIX', avista: 'ESPECIE', cartao: 'CARTAO' };
+            const mechanicLabels = { leo: 'LEO', wandson: 'WANDSON' };
+            const detail = `${mechanicLabels[service.mechanic] || String(service.mechanic || '').toUpperCase()} | ${paymentLabels[service.paymentMethod] || String(service.paymentMethod || '').toUpperCase()}`;
+            const name = `${String(service.name || 'Servico').toUpperCase()} (${detail})`;
             const lines = doc.splitTextToSize(name, 130);
             doc.text(lines, 20, y);
             doc.text(money(service.price), 186, y, { align: 'right' });
@@ -669,7 +680,7 @@ async function downloadOSPDF(osOrId) {
     }
 
     const totalsY = Math.max(y + 8, 218);
-    const totalsHeight = discounts.length > 0 ? 52 : 43;
+    const totalsHeight = discounts.length > 0 ? 43 : 34;
     doc.setFillColor(245, 245, 245);
     doc.roundedRect(118, totalsY, 78, totalsHeight, 2, 2, 'F');
     doc.setTextColor(90, 90, 90);
@@ -679,18 +690,16 @@ async function downloadOSPDF(osOrId) {
     doc.text(money(os.partsTotal), 188, totalsY + 10, { align: 'right' });
     doc.text('SERVICOS', 126, totalsY + 19);
     doc.text(money(os.servicesTotal), 188, totalsY + 19, { align: 'right' });
-    doc.text('MAO DE OBRA', 126, totalsY + 28);
-    doc.text(money(os.labor), 188, totalsY + 28, { align: 'right' });
     if (discounts.length > 0) {
-        doc.text('DESCONTO', 126, totalsY + 37);
-        doc.text(`- ${money(os.discountTotal)}`, 188, totalsY + 37, { align: 'right' });
+        doc.text('DESCONTO', 126, totalsY + 28);
+        doc.text(`- ${money(os.discountTotal)}`, 188, totalsY + 28, { align: 'right' });
     }
     doc.setFillColor(225, 29, 72);
-    doc.roundedRect(118, totalsY + (discounts.length > 0 ? 42 : 33), 78, 14, 2, 2, 'F');
+    doc.roundedRect(118, totalsY + (discounts.length > 0 ? 33 : 24), 78, 14, 2, 2, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(12);
-    doc.text('TOTAL', 126, totalsY + (discounts.length > 0 ? 51 : 42));
-    doc.text(money(os.total), 188, totalsY + (discounts.length > 0 ? 51 : 42), { align: 'right' });
+    doc.text('TOTAL', 126, totalsY + (discounts.length > 0 ? 42 : 33));
+    doc.text(money(os.total), 188, totalsY + (discounts.length > 0 ? 42 : 33), { align: 'right' });
 
     doc.setTextColor(115, 115, 115);
     doc.setFontSize(8);
@@ -808,13 +817,9 @@ function loadOSDraft(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
-    document.getElementById('os-mechanic').value = os.mechanic || 'leo';
-    document.getElementById('os-payment').value = os.paymentMethod || 'pix';
-    document.getElementById('os-labor').value = os.labor;
-    
     const servicesContainer = document.getElementById('os-services-container');
     servicesContainer.innerHTML = '';
-    (os.services || []).forEach(service => addServiceRow(service.name, service.price));
+    (os.services || []).forEach(service => addServiceRow(service.name, service.price, service.mechanic, service.paymentMethod));
 
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
@@ -834,13 +839,9 @@ function editOS(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
-    document.getElementById('os-mechanic').value = os.mechanic || 'leo';
-    document.getElementById('os-payment').value = os.paymentMethod || 'pix';
-    document.getElementById('os-labor').value = os.labor;
-    
     const servicesContainer = document.getElementById('os-services-container');
     servicesContainer.innerHTML = '';
-    (os.services || []).forEach(service => addServiceRow(service.name, service.price));
+    (os.services || []).forEach(service => addServiceRow(service.name, service.price, service.mechanic, service.paymentMethod));
 
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
