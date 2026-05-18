@@ -88,8 +88,9 @@ function updateFinanceSummary(filteredOrders, filterLabel) {
 
     const calcStats = (orders) => {
         return orders.reduce((acc, os) => {
-            if (os.mechanic === 'leo') acc.leo += (os.labor || 0);
-            if (os.mechanic === 'wandson') acc.wandson += (os.labor || 0);
+            const serviceLaborTotal = (os.labor || 0) + (os.servicesTotal || 0);
+            if (os.mechanic === 'leo') acc.leo += serviceLaborTotal;
+            if (os.mechanic === 'wandson') acc.wandson += serviceLaborTotal;
             acc.parts += (os.partsTotal || 0);
             
             if (os.paymentMethod === 'pix') acc.pix += (os.total || 0);

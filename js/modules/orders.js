@@ -27,12 +27,18 @@ function escapeHtml(value = '') {
 
 function normalizeSyncedOrder(order = {}, fallbackId = '') {
     const parts = Array.isArray(order.parts) ? order.parts : [];
+    const services = Array.isArray(order.services) ? order.services : [];
     const normalizedParts = parts.map(part => ({
         name: String(part?.name || ''),
         price: Number(part?.price || 0),
         productId: String(part?.productId || '')
     }));
+    const normalizedServices = services.map(service => ({
+        name: String(service?.name || ''),
+        price: Number(service?.price || 0)
+    }));
     const partsTotal = Number(order.partsTotal ?? normalizedParts.reduce((sum, part) => sum + part.price, 0));
+    const servicesTotal = Number(order.servicesTotal ?? normalizedServices.reduce((sum, service) => sum + service.price, 0));
     const labor = Number(order.labor || 0);
 
     return {
@@ -46,9 +52,11 @@ function normalizeSyncedOrder(order = {}, fallbackId = '') {
         mechanic: order.mechanic || 'leo',
         paymentMethod: order.paymentMethod || 'pix',
         labor,
+        services: normalizedServices,
+        servicesTotal,
         parts: normalizedParts,
         partsTotal,
-        total: Number(order.total ?? labor + partsTotal),
+        total: Number(order.total ?? labor + servicesTotal + partsTotal),
         discounts: Array.isArray(order.discounts) ? order.discounts : [],
         discountTotal: Number(order.discountTotal || 0),
         editCount: Number(order.editCount || 0)
@@ -218,6 +226,21 @@ function addPartRow(name = '', price = '', productId = '') {
     updateDiscountTargets();
 }
 
+function addServiceRow(name = '', price = '') {
+    const container = document.getElementById('os-services-container');
+    if (!container) return;
+
+    const div = document.createElement('div');
+    div.className = 'flex gap-2 items-center os-service-row';
+    div.innerHTML = `
+        <input type="text" placeholder="Tipo de Serviço" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm service-name" value="${escapeHtml(name)}" autocomplete="off">
+        <input type="number" step="0.01" placeholder="R$" class="w-20 md:w-24 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm service-price" value="${escapeHtml(price)}">
+        <button type="button" onclick="this.parentElement.remove(); updateDiscountTargets();" class="text-neutral-600 hover:text-red-500 p-1">✕</button>
+    `;
+    container.appendChild(div);
+    updateDiscountTargets();
+}
+
 window.updateDiscountTargets = updateDiscountTargets;
 
 function bindPartAutocomplete(row) {
@@ -287,12 +310,21 @@ function updateDiscountTargets() {
 
     const selectedValue = targetSelect.value;
     const partRows = Array.from(document.querySelectorAll('.os-part-row'));
+    const serviceRows = Array.from(document.querySelectorAll('.os-service-row'));
     targetSelect.innerHTML = '';
 
     const laborOption = document.createElement('option');
     laborOption.value = 'labor';
     laborOption.textContent = 'Mão de Obra';
     targetSelect.appendChild(laborOption);
+
+    serviceRows.forEach((row, index) => {
+        const name = row.querySelector('.service-name').value.trim() || `Serviço ${index + 1}`;
+        const option = document.createElement('option');
+        option.value = `service-${index}`;
+        option.textContent = name;
+        targetSelect.appendChild(option);
+    });
 
     partRows.forEach((row, index) => {
         const name = row.querySelector('.part-name').value.trim() || `Peça ${index + 1}`;
@@ -318,9 +350,12 @@ function applyOSDiscount() {
         return;
     }
 
-    const targetInput = target === 'labor'
-        ? document.getElementById('os-labor')
-        : document.querySelectorAll('.os-part-row')[parseInt(target.replace('part-', ''), 10)]?.querySelector('.part-price');
+    let targetInput = document.getElementById('os-labor');
+    if (target.startsWith('service-')) {
+        targetInput = document.querySelectorAll('.os-service-row')[parseInt(target.replace('service-', ''), 10)]?.querySelector('.service-price');
+    } else if (target.startsWith('part-')) {
+        targetInput = document.querySelectorAll('.os-part-row')[parseInt(target.replace('part-', ''), 10)]?.querySelector('.part-price');
+    }
 
     if (!targetInput) {
         alert('Selecione um item válido para aplicar o desconto.');
@@ -338,7 +373,7 @@ function applyOSDiscount() {
     state.currentOSDiscounts.push({
         target: target === 'labor'
             ? 'Mão de Obra'
-            : document.getElementById('os-discount-target').selectedOptions[0]?.textContent || 'Peça',
+            : document.getElementById('os-discount-target').selectedOptions[0]?.textContent || 'Item',
         type,
         value: discountValue,
         amount: appliedAmount
@@ -357,6 +392,19 @@ function getOSFormData() {
     const paymentMethod = document.getElementById('os-payment').value;
     const labor = parseFloat(document.getElementById('os-labor').value) || 0;
     
+    const serviceRows = document.querySelectorAll('.os-service-row');
+    const services = [];
+    let servicesTotal = 0;
+
+    serviceRows.forEach(row => {
+        const name = row.querySelector('.service-name').value;
+        const price = parseFloat(row.querySelector('.service-price').value) || 0;
+        if (name || price > 0) {
+            services.push({ name, price });
+            servicesTotal += price;
+        }
+    });
+
     const partRows = document.querySelectorAll('.os-part-row');
     const parts = [];
     let partsTotal = 0;
@@ -380,9 +428,11 @@ function getOSFormData() {
         mechanic,
         paymentMethod,
         labor,
+        services,
+        servicesTotal,
         parts,
         partsTotal,
-        total: labor + partsTotal,
+        total: labor + servicesTotal + partsTotal,
         discounts: [...state.currentOSDiscounts],
         discountTotal: state.currentOSDiscounts.reduce((sum, d) => sum + Number(d.amount || 0), 0)
     };
@@ -498,6 +548,7 @@ async function downloadOSPDF(osOrId) {
     const doc = new jsPDF();
     const logoData = await loadImageForPDF('img/logo.png');
     const parts = os.parts || [];
+    const services = os.services || [];
     const discounts = os.discounts || [];
     const money = value => `R$ ${Number(value || 0).toFixed(2)}`;
     
@@ -568,6 +619,19 @@ async function downloadOSPDF(osOrId) {
     doc.line(20, y + 5, 190, y + 5);
     y += 13;
 
+    if (services.length > 0) {
+        services.forEach(service => {
+            const name = String(service.name || 'Servico').toUpperCase();
+            const lines = doc.splitTextToSize(name, 130);
+            doc.text(lines, 20, y);
+            doc.text(money(service.price), 186, y, { align: 'right' });
+            y += Math.max(10, lines.length * 5 + 4);
+            doc.setDrawColor(235, 235, 235);
+            doc.line(20, y, 190, y);
+            y += 6;
+        });
+    }
+
     if (parts.length > 0) {
         parts.forEach(part => {
             const name = String(part.name || 'Peca').toUpperCase();
@@ -605,7 +669,7 @@ async function downloadOSPDF(osOrId) {
     }
 
     const totalsY = Math.max(y + 8, 218);
-    const totalsHeight = discounts.length > 0 ? 43 : 34;
+    const totalsHeight = discounts.length > 0 ? 52 : 43;
     doc.setFillColor(245, 245, 245);
     doc.roundedRect(118, totalsY, 78, totalsHeight, 2, 2, 'F');
     doc.setTextColor(90, 90, 90);
@@ -613,18 +677,20 @@ async function downloadOSPDF(osOrId) {
     doc.setFont(undefined, 'bold');
     doc.text('PECAS', 126, totalsY + 10);
     doc.text(money(os.partsTotal), 188, totalsY + 10, { align: 'right' });
-    doc.text('MAO DE OBRA', 126, totalsY + 19);
-    doc.text(money(os.labor), 188, totalsY + 19, { align: 'right' });
+    doc.text('SERVICOS', 126, totalsY + 19);
+    doc.text(money(os.servicesTotal), 188, totalsY + 19, { align: 'right' });
+    doc.text('MAO DE OBRA', 126, totalsY + 28);
+    doc.text(money(os.labor), 188, totalsY + 28, { align: 'right' });
     if (discounts.length > 0) {
-        doc.text('DESCONTO', 126, totalsY + 28);
-        doc.text(`- ${money(os.discountTotal)}`, 188, totalsY + 28, { align: 'right' });
+        doc.text('DESCONTO', 126, totalsY + 37);
+        doc.text(`- ${money(os.discountTotal)}`, 188, totalsY + 37, { align: 'right' });
     }
     doc.setFillColor(225, 29, 72);
-    doc.roundedRect(118, totalsY + (discounts.length > 0 ? 33 : 24), 78, 14, 2, 2, 'F');
+    doc.roundedRect(118, totalsY + (discounts.length > 0 ? 42 : 33), 78, 14, 2, 2, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(12);
-    doc.text('TOTAL', 126, totalsY + (discounts.length > 0 ? 42 : 33));
-    doc.text(money(os.total), 188, totalsY + (discounts.length > 0 ? 42 : 33), { align: 'right' });
+    doc.text('TOTAL', 126, totalsY + (discounts.length > 0 ? 51 : 42));
+    doc.text(money(os.total), 188, totalsY + (discounts.length > 0 ? 51 : 42), { align: 'right' });
 
     doc.setTextColor(115, 115, 115);
     doc.setFontSize(8);
@@ -746,11 +812,16 @@ function loadOSDraft(id) {
     document.getElementById('os-payment').value = os.paymentMethod || 'pix';
     document.getElementById('os-labor').value = os.labor;
     
+    const servicesContainer = document.getElementById('os-services-container');
+    servicesContainer.innerHTML = '';
+    (os.services || []).forEach(service => addServiceRow(service.name, service.price));
+
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
-    os.parts.forEach(p => addPartRow(p.name, p.price, p.productId));
-    if (os.parts.length === 0) addPartRow();
+    (os.parts || []).forEach(p => addPartRow(p.name, p.price, p.productId));
+    if (!os.parts || os.parts.length === 0) addPartRow();
     state.currentOSDiscounts = [...(os.discounts || [])];
+    updateDiscountTargets();
     
     document.getElementById('os-form').scrollIntoView({ behavior: 'smooth' });
 }
@@ -767,11 +838,16 @@ function editOS(id) {
     document.getElementById('os-payment').value = os.paymentMethod || 'pix';
     document.getElementById('os-labor').value = os.labor;
     
+    const servicesContainer = document.getElementById('os-services-container');
+    servicesContainer.innerHTML = '';
+    (os.services || []).forEach(service => addServiceRow(service.name, service.price));
+
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
-    os.parts.forEach(p => addPartRow(p.name, p.price, p.productId));
-    if (os.parts.length === 0) addPartRow();
+    (os.parts || []).forEach(p => addPartRow(p.name, p.price, p.productId));
+    if (!os.parts || os.parts.length === 0) addPartRow();
     state.currentOSDiscounts = [...(os.discounts || [])];
+    updateDiscountTargets();
     
     document.getElementById('os-submit-btn').textContent = 'Atualizar O.S & Baixar';
     document.getElementById('os-cancel-edit').classList.remove('hidden');
@@ -787,6 +863,7 @@ function resetOSForm() {
     document.getElementById('os-form').reset();
     document.getElementById('os-id').value = '';
     document.getElementById('os-parts-container').innerHTML = '';
+    document.getElementById('os-services-container').innerHTML = '';
     document.getElementById('os-observations').value = '';
     state.currentOSDiscounts = [];
     addPartRow();
@@ -855,6 +932,7 @@ async function deleteOpenOS(id) {
 
 // Exposição Global para botões HTML
 window.addPartRow = addPartRow;
+window.addServiceRow = addServiceRow;
 window.applyOSDiscount = applyOSDiscount;
 window.saveOSDraft = saveOSDraft;
 window.finalizeOS = finalizeOS;
@@ -865,4 +943,4 @@ window.clearOSHistory = clearOSHistory;
 window.deleteOpenOS = deleteOpenOS;
 window.downloadOSPDF = downloadOSPDF;
 
-export { addPartRow, updateDiscountTargets, applyOSDiscount, getOSFormData, initOrdersSync, saveOSDraft, finalizeOS, getNextOSNumber, formatOSNumber, downloadOSPDF, saveAndRefresh, renderHistory, renderOpenOrders, renderClosedOrders, loadOSDraft, editOS, resetOSForm, deleteOS, clearOSHistory, deleteOpenOS };
+export { addPartRow, addServiceRow, updateDiscountTargets, applyOSDiscount, getOSFormData, initOrdersSync, saveOSDraft, finalizeOS, getNextOSNumber, formatOSNumber, downloadOSPDF, saveAndRefresh, renderHistory, renderOpenOrders, renderClosedOrders, loadOSDraft, editOS, resetOSForm, deleteOS, clearOSHistory, deleteOpenOS };

@@ -1,6 +1,6 @@
 import { initProductsSync, addProduct, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, renderAdminStock, reserveProduct, reloadProducts, printLowStockReport } from './modules/products.js';
 import { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments } from './modules/appointments.js';
-import { addPartRow, updateDiscountTargets, applyOSDiscount, saveOSDraft, finalizeOS, loadOSDraft, deleteOpenOS, clearOSHistory, editOS, deleteOS, downloadOSPDF, resetOSForm, renderHistory, renderOpenOrders, renderClosedOrders } from './modules/orders.js';
+import { addPartRow, addServiceRow, updateDiscountTargets, applyOSDiscount, saveOSDraft, finalizeOS, loadOSDraft, deleteOpenOS, clearOSHistory, editOS, deleteOS, downloadOSPDF, resetOSForm, renderHistory, renderOpenOrders, renderClosedOrders } from './modules/orders.js';
 import { renderChart, refreshFinanceDashboard } from './modules/finance.js';
 import { loginAdmin, logoutAdmin, initAuthObserver } from './modules/auth.js';
 import { toggleMenu, toggleAdmin, toggleShop, toggleAdminNav, showAdminView, startAlarm, stopAlarm } from './modules/ui.js';
@@ -35,6 +35,7 @@ Object.assign(window, {
     clearBlockedDates,
     printLowStockReport,
     addPartRow,
+    addServiceRow,
     updateDiscountTargets,
     applyOSDiscount,
     editOS,

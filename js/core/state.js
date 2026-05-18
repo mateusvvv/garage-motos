@@ -20,14 +20,20 @@ function readOrdersFromStorage() {
 
 function normalizeOrder(order, index = 0) {
     const parts = Array.isArray(order?.parts) ? order.parts : [];
+    const services = Array.isArray(order?.services) ? order.services : [];
     const normalizedParts = parts.map(part => ({
         name: String(part?.name || ''),
         price: Number(part?.price || 0),
         productId: String(part?.productId || '')
     }));
+    const normalizedServices = services.map(service => ({
+        name: String(service?.name || ''),
+        price: Number(service?.price || 0)
+    }));
     const partsTotal = Number(order?.partsTotal ?? normalizedParts.reduce((sum, part) => sum + part.price, 0));
+    const servicesTotal = Number(order?.servicesTotal ?? normalizedServices.reduce((sum, service) => sum + service.price, 0));
     const labor = Number(order?.labor || 0);
-    const total = Number(order?.total ?? labor + partsTotal);
+    const total = Number(order?.total ?? labor + servicesTotal + partsTotal);
     const id = Number(order?.id) || Date.now() + index;
 
     return {
@@ -39,6 +45,8 @@ function normalizeOrder(order, index = 0) {
         mechanic: order?.mechanic || 'leo',
         paymentMethod: order?.paymentMethod || 'pix',
         labor,
+        services: normalizedServices,
+        servicesTotal,
         parts: normalizedParts,
         partsTotal,
         total,

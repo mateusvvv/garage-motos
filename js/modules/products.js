@@ -136,7 +136,7 @@ function initProductsSync() {
         clearTimeout(fallbackTimer);
         if (snapshot.metadata.fromCache) return;
         setProductsFromSnapshot(snapshot);
-        if (auth.currentUser) renderAdminStock();
+        if (auth.currentUser) renderAdminStock(document.getElementById('stock-search')?.value || '');
     }, async (error) => {
         clearTimeout(fallbackTimer);
         console.error("Erro ao sincronizar produtos em tempo real:", error);
@@ -498,11 +498,14 @@ function isOutOfStock(stock) {
     return (Number.parseInt(stock, 10) || 0) <= 0;
 }
 
-function renderAdminStock(searchTerm = '') {
+function renderAdminStock(searchTerm = null) {
     const container = document.getElementById('admin-stock-list');
+    const searchInput = document.getElementById('stock-search');
     const totalCountElement = document.getElementById('stock-total-count');
     const loadingIndicator = document.getElementById('stock-loading-indicator');
     if (!container) return;
+    const activeSearchTerm = searchTerm ?? searchInput?.value ?? '';
+    const normalizedSearchTerm = activeSearchTerm.trim().toLowerCase();
 
     if (!hasProductsLoaded) {
         if (totalCountElement) totalCountElement.textContent = 'Total de Itens: carregando...';
@@ -527,9 +530,12 @@ function renderAdminStock(searchTerm = '') {
         return;
     }
     
-    const filtered = sortProductsByName(state.products.filter(p => 
-        String(p.name || '').toLowerCase().includes(searchTerm.toLowerCase())
-    ));
+    const filtered = sortProductsByName(state.products.filter(p => {
+        if (!normalizedSearchTerm) return true;
+        const name = String(p.name || '').toLowerCase();
+        const location = String(p.location || '').toLowerCase();
+        return name.includes(normalizedSearchTerm) || location.includes(normalizedSearchTerm);
+    }));
 
     if (totalCountElement) {
         totalCountElement.textContent = `Total de Itens: ${filtered.length}`;
@@ -540,18 +546,18 @@ function renderAdminStock(searchTerm = '') {
     container.innerHTML = filtered.map(p => {
         const outOfStock = isOutOfStock(p.stock);
         return `
-        <div class="flex items-center justify-between p-4 border ${outOfStock ? 'border-red-600/50 bg-red-950/30' : 'border-neutral-800 hover:bg-black/30'} transition rounded">
-            <div class="flex items-center gap-4 overflow-hidden">
+        <div class="flex items-start justify-between gap-3 p-4 border ${outOfStock ? 'border-red-600/50 bg-red-950/30' : 'border-neutral-800 hover:bg-black/30'} transition rounded">
+            <div class="flex items-start gap-4 min-w-0 flex-1">
                 <div class="w-12 h-12 flex-shrink-0 ${outOfStock ? 'bg-red-950 border border-red-600/40' : 'bg-neutral-800'} rounded flex items-center justify-center overflow-hidden">
                     ${p.image ? `<img src="${p.image}" loading="lazy" decoding="async" class="max-h-full max-w-full object-contain ${outOfStock ? 'opacity-45 grayscale' : ''}" alt="${escapeHtml(p.name)}">` : ''}
                 </div>
-                <div class="truncate">
-                    <p class="font-bold text-xs md:text-sm uppercase truncate ${outOfStock ? 'text-red-200' : ''}">${escapeHtml(p.name)}</p>
-                    <p class="text-[11px] md:text-xs ${outOfStock ? 'text-red-400 font-black' : 'text-neutral-500'} uppercase tracking-tighter">${formatStockLabel(p.stock)} | R$ ${Number(p.price || 0).toFixed(2)} ${p.location ? `| Loc: ${escapeHtml(p.location)}` : ''}</p>
+                <div class="min-w-0 flex-1">
+                    <p class="font-bold text-xs md:text-sm uppercase leading-snug break-words ${outOfStock ? 'text-red-200' : ''}">${escapeHtml(p.name)}</p>
+                    <p class="text-[11px] md:text-xs ${outOfStock ? 'text-red-400 font-black' : 'text-neutral-500'} uppercase tracking-normal leading-relaxed break-words mt-1">${formatStockLabel(p.stock)} | R$ ${Number(p.price || 0).toFixed(2)} ${p.location ? `| Loc: ${escapeHtml(p.location)}` : ''}</p>
                 </div>
             </div>
             ${isAdmin ? `
-                <div class="flex gap-3 ml-2">
+                <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 ml-2 flex-shrink-0">
                     <button onclick="editProduct('${p.id}')" class="text-blue-500 hover:text-blue-400 text-xs font-black uppercase italic">Editar</button>
                     <button onclick="deleteProduct('${p.id}')" class="text-neutral-600 hover:text-red-600 text-xs font-black uppercase italic">Excluir</button>
                 </div>
