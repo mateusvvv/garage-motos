@@ -766,21 +766,25 @@ function renderClosedOrders() {
 
     const ordered = [...state.serviceOrders].sort((a, b) => (Number(b.osNumber) || b.id) - (Number(a.osNumber) || a.id));
     list.innerHTML = ordered.map((os, index) => `
-        <div class="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2 animate-fade-in hover:bg-black/20 transition-colors">
+        <div class="py-5 flex flex-col md:flex-row md:items-center justify-between gap-3 animate-fade-in hover:bg-white/[0.02] transition-colors">
             <div class="min-w-0 flex items-start gap-3">
-                <p class="text-neutral-600 font-black text-[10px] uppercase italic tracking-widest whitespace-nowrap pt-0.5">#${formatOSNumber(os, index)}</p>
+                <p class="text-red-600 font-black text-xs uppercase italic leading-tight whitespace-nowrap pt-0.5">
+                    O.S #${formatOSNumber(os, index)}
+                    ${os.editCount > 0 ? `<br><span class="text-[9px] text-neutral-500 not-italic font-bold uppercase tracking-tighter">Editada ${os.editCount}x</span>` : ''}
+                </p>
                 <div class="min-w-0">
-                    <h5 class="font-bold text-xs uppercase truncate text-neutral-300">${escapeHtml(os.client || 'Sem Nome')}</h5>
-                    <p class="text-[10px] text-neutral-600 uppercase truncate">${escapeHtml(os.bike || 'Sem Moto')} | ${escapeHtml(os.date || '')}</p>
+                    <h5 class="font-bold text-sm uppercase truncate text-white">${escapeHtml(os.client || 'Sem Nome')}</h5>
+                    <p class="text-[10px] text-neutral-500 uppercase italic truncate">${escapeHtml(os.bike || 'Sem Moto')} | ${escapeHtml(os.date || '')}</p>
+                    <p class="text-green-500 font-black uppercase text-[9px] tracking-widest mt-1">Finalizada</p>
                 </div>
             </div>
-            <div class="flex items-center gap-4 md:justify-end">
-                <p class="text-neutral-400 font-bold text-xs whitespace-nowrap">R$ ${Number(os.total || 0).toFixed(2)}</p>
-                <button onclick="downloadOSPDF(${os.id})" class="text-[9px] text-neutral-500 font-black uppercase tracking-widest hover:text-white transition">PDF</button>
-                <button onclick="editOS(${os.id})" class="text-[9px] text-neutral-500 font-black uppercase tracking-widest hover:text-blue-400 transition">Editar</button>
+            <div class="flex flex-wrap items-center gap-4 md:justify-end">
+                <p class="text-red-500 font-black text-sm whitespace-nowrap">R$ ${Number(os.total || 0).toFixed(2)}</p>
+                <button onclick="downloadOSPDF(${os.id})" class="text-[10px] text-green-500 font-black uppercase tracking-widest hover:text-green-400 transition">PDF</button>
+                <button onclick="editOS(${os.id})" class="text-[10px] text-blue-500 font-black uppercase tracking-widest hover:text-blue-400 transition">Editar</button>
             </div>
         </div>
-    `).join('') || '<p class="text-center text-neutral-600 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">Nenhuma O.S finalizada</p>';
+    `).join('') || '<p class="text-center text-neutral-600 text-xs py-8 uppercase font-bold tracking-[0.2em]">Nenhuma O.S finalizada</p>';
 }
 
 function renderOpenOrders() {

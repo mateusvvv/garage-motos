@@ -99,6 +99,18 @@ function toggleShop() {
     updateScrollLock();
 }
 
+function toggleClosedOrders() {
+    const list = document.getElementById('closed-os-list');
+    const button = document.getElementById('closed-os-toggle');
+    const label = document.getElementById('closed-os-toggle-label');
+    if (!list) return;
+
+    const isOpening = list.classList.contains('hidden');
+    list.classList.toggle('hidden', !isOpening);
+    if (button) button.setAttribute('aria-expanded', String(isOpening));
+    if (label) label.textContent = isOpening ? 'Ocultar O.S' : 'Mostrar O.S';
+}
+
 function updateMenuBadge(count) {
     const mobileBadge = document.getElementById('menu-badge-mobile');
     const desktopBadge = document.getElementById('menu-badge-desktop');
@@ -130,5 +142,6 @@ window.toggleAdmin = toggleAdmin;
 window.stopAlarm = stopAlarm;
 window.showAdminView = showAdminView;
 window.toggleShop = toggleShop;
+window.toggleClosedOrders = toggleClosedOrders;
 
-export { updateScrollLock, toggleMenu, toggleAdmin, startAlarm, stopAlarm, toggleAdminNav, showAdminView, toggleShop, updateMenuBadge, toggleMenuShakeAnimation };
+export { updateScrollLock, toggleMenu, toggleAdmin, startAlarm, stopAlarm, toggleAdminNav, showAdminView, toggleShop, toggleClosedOrders, updateMenuBadge, toggleMenuShakeAnimation };

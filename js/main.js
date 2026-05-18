@@ -3,7 +3,7 @@ import { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppoint
 import { addPartRow, addServiceRow, updateDiscountTargets, applyOSDiscount, saveOSDraft, finalizeOS, loadOSDraft, deleteOpenOS, clearOSHistory, editOS, deleteOS, downloadOSPDF, resetOSForm, renderHistory, renderOpenOrders, renderClosedOrders } from './modules/orders.js';
 import { renderChart, refreshFinanceDashboard } from './modules/finance.js';
 import { loginAdmin, logoutAdmin, initAuthObserver } from './modules/auth.js';
-import { toggleMenu, toggleAdmin, toggleShop, toggleAdminNav, showAdminView, startAlarm, stopAlarm } from './modules/ui.js';
+import { toggleMenu, toggleAdmin, toggleShop, toggleClosedOrders, toggleAdminNav, showAdminView, startAlarm, stopAlarm } from './modules/ui.js';
 
 window.GM = {
     renderAdminStock,
@@ -16,6 +16,7 @@ Object.assign(window, {
     toggleMenu,
     toggleAdmin,
     toggleShop,
+    toggleClosedOrders,
     openAppointmentPicker,
     closeAppointmentPicker,
     toggleAdminNav,
