@@ -766,21 +766,21 @@ function renderClosedOrders() {
 
     const ordered = [...state.serviceOrders].sort((a, b) => (Number(b.osNumber) || b.id) - (Number(a.osNumber) || a.id));
     list.innerHTML = ordered.map((os, index) => `
-        <div class="bg-black border border-neutral-800 p-4 rounded-xl flex flex-col gap-3 animate-fade-in">
-            <div class="flex justify-between items-start gap-3">
+        <div class="py-3 flex flex-col md:flex-row md:items-center justify-between gap-2 animate-fade-in hover:bg-black/20 transition-colors">
+            <div class="min-w-0 flex items-start gap-3">
+                <p class="text-neutral-600 font-black text-[10px] uppercase italic tracking-widest whitespace-nowrap pt-0.5">#${formatOSNumber(os, index)}</p>
                 <div class="min-w-0">
-                    <p class="text-red-600 font-black text-[9px] uppercase italic tracking-widest mb-1">O.S #${formatOSNumber(os, index)}</p>
-                    <h5 class="font-bold text-sm uppercase truncate text-white">${escapeHtml(os.client || 'Sem Nome')}</h5>
-                    <p class="text-[10px] text-neutral-500 uppercase italic truncate">${escapeHtml(os.bike || 'Sem Moto')} | ${escapeHtml(os.date || '')}</p>
+                    <h5 class="font-bold text-xs uppercase truncate text-neutral-300">${escapeHtml(os.client || 'Sem Nome')}</h5>
+                    <p class="text-[10px] text-neutral-600 uppercase truncate">${escapeHtml(os.bike || 'Sem Moto')} | ${escapeHtml(os.date || '')}</p>
                 </div>
-                <p class="text-white font-black text-sm whitespace-nowrap">R$ ${Number(os.total || 0).toFixed(2)}</p>
             </div>
-            <div class="flex gap-2 border-t border-neutral-900 pt-3">
-                <button onclick="downloadOSPDF(${os.id})" class="flex-1 bg-neutral-800 py-2 rounded text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition">Baixar PDF</button>
-                <button onclick="editOS(${os.id})" class="flex-1 bg-neutral-900 py-2 rounded text-[9px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition">Editar</button>
+            <div class="flex items-center gap-4 md:justify-end">
+                <p class="text-neutral-400 font-bold text-xs whitespace-nowrap">R$ ${Number(os.total || 0).toFixed(2)}</p>
+                <button onclick="downloadOSPDF(${os.id})" class="text-[9px] text-neutral-500 font-black uppercase tracking-widest hover:text-white transition">PDF</button>
+                <button onclick="editOS(${os.id})" class="text-[9px] text-neutral-500 font-black uppercase tracking-widest hover:text-blue-400 transition">Editar</button>
             </div>
         </div>
-    `).join('') || '<p class="col-span-full text-center text-neutral-600 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">Nenhuma O.S finalizada</p>';
+    `).join('') || '<p class="text-center text-neutral-600 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">Nenhuma O.S finalizada</p>';
 }
 
 function renderOpenOrders() {
