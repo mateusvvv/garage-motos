@@ -447,7 +447,8 @@ async function decrementProductsStock(parts = []) {
     const usageByProduct = parts.reduce((acc, part) => {
         const productId = resolveProductId(part);
         if (!productId) return acc;
-        acc[productId] = (acc[productId] || 0) + 1;
+        const quantity = Math.max(Number.parseInt(part.quantity, 10) || 1, 1);
+        acc[productId] = (acc[productId] || 0) + quantity;
         return acc;
     }, {});
 

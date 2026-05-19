@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
     addSafeListener('appointment-form', 'submit', scheduleService);
     addSafeListener('block-date-form', 'submit', blockDate);
     addSafeListener('revenue-filter', 'change', renderChart);
+    addSafeListener('revenue-period-filter', 'change', renderChart);
     addSafeListener('login-form', 'submit', loginAdmin);
     addSafeListener('stock-search', 'input', (e) => renderAdminStock(e.target.value));
     addSafeListener('shop-search', 'input', renderShop);

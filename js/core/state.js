@@ -21,11 +21,17 @@ function readOrdersFromStorage() {
 function normalizeOrder(order, index = 0) {
     const parts = Array.isArray(order?.parts) ? order.parts : [];
     const services = Array.isArray(order?.services) ? order.services : [];
-    const normalizedParts = parts.map(part => ({
-        name: String(part?.name || ''),
-        price: Number(part?.price || 0),
-        productId: String(part?.productId || '')
-    }));
+    const normalizedParts = parts.map(part => {
+        const quantity = Math.max(Number.parseInt(part?.quantity, 10) || 1, 1);
+        const unitPrice = Number(part?.unitPrice ?? (quantity > 1 ? Number(part?.price || 0) / quantity : part?.price || 0));
+        return {
+            name: String(part?.name || ''),
+            quantity,
+            unitPrice,
+            price: Number(part?.price ?? unitPrice * quantity),
+            productId: String(part?.productId || '')
+        };
+    });
     let normalizedServices = services.map(service => ({
         name: String(service?.name || ''),
         price: Number(service?.price || 0),

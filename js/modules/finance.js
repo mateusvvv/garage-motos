@@ -14,37 +14,88 @@ function getPaymentBreakdown(os = {}) {
     return breakdown;
 }
 
+function getDateParts(date = '') {
+    const [day, month, year] = String(date).split('/');
+    if (!day || !month || !year) return null;
+    return { day, month, year };
+}
+
+function getCurrentRevenueFilter() {
+    const typeSelect = document.getElementById('revenue-filter');
+    const periodSelect = document.getElementById('revenue-period-filter');
+    const type = typeSelect?.value || 'all';
+    return {
+        type,
+        period: type === 'all' ? '' : (periodSelect?.value || '')
+    };
+}
+
+function orderLabels(labels, type) {
+    return labels.sort((a, b) => {
+        if (type === 'year' || type === 'all') return Number(a) - Number(b);
+        if (type === 'month') {
+            const [da, ma, ya] = a.split('/').map(Number);
+            const [db, mb, yb] = b.split('/').map(Number);
+            return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
+        }
+        if (type === 'day') return 0;
+
+        const [ma, ya] = a.split('/').map(Number);
+        const [mb, yb] = b.split('/').map(Number);
+        return new Date(ya, ma - 1, 1) - new Date(yb, mb - 1, 1);
+    });
+}
+
+function getOrderPeriodKey(os, filterType) {
+    const dateParts = getDateParts(os.date);
+    if (!dateParts) return os.date || '';
+
+    if (filterType === 'year' || filterType === 'all') return dateParts.year;
+    if (filterType === 'month') return os.date;
+    if (filterType === 'day') return os.date;
+    return `${dateParts.month}/${dateParts.year}`;
+}
+
+function filterOrdersByRevenuePeriod(orders, filter) {
+    if (filter.type !== 'all' && !filter.period) return [];
+    if (filter.type === 'day') return orders.filter(os => os.date === filter.period);
+    if (filter.type === 'month') return orders.filter(os => {
+        const dateParts = getDateParts(os.date);
+        return dateParts && `${dateParts.month}/${dateParts.year}` === filter.period;
+    });
+    if (filter.type === 'year') return orders.filter(os => {
+        const dateParts = getDateParts(os.date);
+        return dateParts?.year === filter.period;
+    });
+    return orders;
+}
+
 function renderChart() {
     const canvas = document.getElementById('revenueChart');
     if (!canvas) {
-        const filterSelect = document.getElementById('revenue-filter');
-        updateFinanceSummary(state.serviceOrders, filterSelect?.selectedOptions[0]?.textContent || 'Total');
+        updateRevenuePeriodOptions();
+        const filter = getCurrentRevenueFilter();
+        updateFinanceSummary(filterOrdersByRevenuePeriod(state.serviceOrders, filter), getRevenueFilterLabel(filter));
         return;
     }
+    updateRevenuePeriodOptions();
     const ctx = canvas.getContext('2d');
-    const filterSelect = document.getElementById('revenue-filter');
-    const filter = filterSelect?.value || 'all';
-    const filterLabel = filterSelect?.selectedOptions[0]?.textContent || 'Total';
+    const filter = getCurrentRevenueFilter();
+    const filterLabel = getRevenueFilterLabel(filter);
     
-    let filteredOrders = state.serviceOrders;
-    if (filter !== 'all') {
-        filteredOrders = state.serviceOrders.filter(os => os.date.endsWith(filter));
-    }
+    const filteredOrders = filterOrdersByRevenuePeriod(state.serviceOrders, filter);
 
-    const dailyData = filteredOrders.reduce((acc, os) => {
-        if (!acc[os.date]) acc[os.date] = { pix: 0, avista: 0, cartao: 0 };
+    const revenueData = filteredOrders.reduce((acc, os) => {
+        const label = getOrderPeriodKey(os, filter.type);
+        if (!acc[label]) acc[label] = { pix: 0, avista: 0, cartao: 0 };
         const breakdown = getPaymentBreakdown(os);
-        acc[os.date].pix += breakdown.pix;
-        acc[os.date].avista += breakdown.avista;
-        acc[os.date].cartao += breakdown.cartao;
+        acc[label].pix += breakdown.pix;
+        acc[label].avista += breakdown.avista;
+        acc[label].cartao += breakdown.cartao;
         return acc;
     }, {});
 
-    const labels = Object.keys(dailyData).sort((a, b) => {
-        const [da, ma, ya] = a.split('/').map(Number);
-        const [db, mb, yb] = b.split('/').map(Number);
-        return new Date(ya, ma - 1, da) - new Date(yb, mb - 1, db);
-    });
+    const labels = orderLabels(Object.keys(revenueData), filter.type);
 
     if (state.revenueChart) state.revenueChart.destroy();
 
@@ -55,19 +106,19 @@ function renderChart() {
             datasets: [
                 {
                     label: 'Pix',
-                    data: labels.map(l => dailyData[l].pix),
+                    data: labels.map(l => revenueData[l].pix),
                     backgroundColor: '#a855f7',
                     borderRadius: 4
                 },
                 {
                     label: 'Espécie',
-                    data: labels.map(l => dailyData[l].avista),
+                    data: labels.map(l => revenueData[l].avista),
                     backgroundColor: '#22c55e',
                     borderRadius: 4
                 },
                 {
                     label: 'Cartão',
-                    data: labels.map(l => dailyData[l].cartao),
+                    data: labels.map(l => revenueData[l].cartao),
                     backgroundColor: '#3b82f6',
                     borderRadius: 4
                 }
@@ -95,6 +146,7 @@ function renderChart() {
 
 function refreshFinanceDashboard() {
     updateRevenueFilterOptions();
+    updateRevenuePeriodOptions();
     renderChart();
 }
 
@@ -175,29 +227,85 @@ function updateFinanceSummary(filteredOrders, filterLabel) {
 function updateRevenueFilterOptions() {
     const select = document.getElementById('revenue-filter');
     if (!select) return;
+    const currentValue = select.value || 'all';
+    select.innerHTML = `
+        <option value="all">Faturamento Total</option>
+        <option value="day">Por dia</option>
+        <option value="month">Por mês</option>
+        <option value="year">Por ano</option>
+    `;
+    select.value = ['all', 'day', 'month', 'year'].includes(currentValue) ? currentValue : 'all';
+}
+
+function updateRevenuePeriodOptions() {
+    const typeSelect = document.getElementById('revenue-filter');
+    const periodSelect = document.getElementById('revenue-period-filter');
+    if (!typeSelect || !periodSelect) return;
+
+    const type = typeSelect.value || 'all';
+    const currentValue = periodSelect.value;
+
+    if (type === 'all') {
+        periodSelect.classList.add('hidden');
+        periodSelect.innerHTML = '<option value="">Selecione o período</option>';
+        return;
+    }
+
+    const days = new Set();
     const months = new Set();
     const years = new Set();
     state.serviceOrders.forEach(os => {
-        const parts = os.date.split('/');
-        if (parts.length === 3) {
-            months.add(`${parts[1]}/${parts[2]}`);
-            years.add(parts[2]);
+        const dateParts = getDateParts(os.date);
+        if (dateParts) {
+            days.add(os.date);
+            months.add(`${dateParts.month}/${dateParts.year}`);
+            years.add(dateParts.year);
         }
     });
-    
-    const currentValue = select.value;
-    select.innerHTML = '<option value="all">Faturamento Total</option>';
-    [...years].sort().reverse().forEach(y => {
+
+    const optionsByType = {
+        day: {
+            placeholder: 'Selecione o dia',
+            values: orderLabels([...days], 'month').reverse(),
+            prefix: 'Dia '
+        },
+        month: {
+            placeholder: 'Selecione o mês',
+            values: orderLabels([...months], 'default').reverse(),
+            prefix: 'Mês '
+        },
+        year: {
+            placeholder: 'Selecione o ano',
+            values: [...years].sort().reverse(),
+            prefix: 'Ano '
+        }
+    };
+
+    const config = optionsByType[type] || optionsByType.day;
+    periodSelect.classList.remove('hidden');
+    periodSelect.innerHTML = `<option value="">${config.placeholder}</option>`;
+    config.values.forEach(value => {
         const option = document.createElement('option');
-        option.value = y; option.textContent = `Ano ${y}`;
-        select.appendChild(option);
+        option.value = value;
+        option.textContent = `${config.prefix}${value}`;
+        periodSelect.appendChild(option);
     });
-    [...months].sort().reverse().forEach(m => {
-        const option = document.createElement('option');
-        option.value = m; option.textContent = m;
-        select.appendChild(option);
-    });
-    select.value = currentValue || 'all';
+
+    if ([...periodSelect.options].some(option => option.value === currentValue)) {
+        periodSelect.value = currentValue;
+    } else {
+        periodSelect.value = '';
+    }
+}
+
+function getRevenueFilterLabel(filter) {
+    const labels = {
+        all: 'Faturamento Total',
+        day: filter.period ? `Dia ${filter.period}` : 'Selecione um dia',
+        month: filter.period ? `Mês ${filter.period}` : 'Selecione um mês',
+        year: filter.period ? `Ano ${filter.period}` : 'Selecione um ano'
+    };
+    return labels[filter.type] || 'Faturamento Total';
 }
 
 

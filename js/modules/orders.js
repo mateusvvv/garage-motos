@@ -28,11 +28,17 @@ function escapeHtml(value = '') {
 function normalizeSyncedOrder(order = {}, fallbackId = '') {
     const parts = Array.isArray(order.parts) ? order.parts : [];
     const services = Array.isArray(order.services) ? order.services : [];
-    const normalizedParts = parts.map(part => ({
-        name: String(part?.name || ''),
-        price: Number(part?.price || 0),
-        productId: String(part?.productId || '')
-    }));
+    const normalizedParts = parts.map(part => {
+        const quantity = Math.max(Number.parseInt(part?.quantity, 10) || 1, 1);
+        const unitPrice = Number(part?.unitPrice ?? (quantity > 1 ? Number(part?.price || 0) / quantity : part?.price || 0));
+        return {
+            name: String(part?.name || ''),
+            quantity,
+            unitPrice,
+            price: Number(part?.price ?? unitPrice * quantity),
+            productId: String(part?.productId || '')
+        };
+    });
     let normalizedServices = services.map(service => ({
         name: String(service?.name || ''),
         price: Number(service?.price || 0),
@@ -219,16 +225,17 @@ async function deleteOpenOrderFromCloud(id) {
     await deleteDoc(doc(db, OPEN_ORDERS_COLLECTION, String(id)));
 }
 
-function addPartRow(name = '', price = '', productId = '') {
+function addPartRow(name = '', price = '', productId = '', quantity = 1) {
     const container = document.getElementById('os-parts-container');
     if (!container) return;
 
     const div = document.createElement('div');
-    div.className = 'relative flex gap-2 items-center os-part-row';
+    div.className = 'relative grid grid-cols-[minmax(0,1fr)_70px_90px_auto] md:grid-cols-[minmax(0,1fr)_80px_110px_auto] gap-2 items-center os-part-row';
     if (productId) div.dataset.productId = productId;
     div.innerHTML = `
         <input type="text" placeholder="Nome da Peça" class="flex-1 min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-name" value="${escapeHtml(name)}" autocomplete="off">
-        <input type="number" step="0.01" placeholder="R$" class="w-20 md:w-24 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-price" value="${escapeHtml(price)}">
+        <input type="number" min="1" step="1" placeholder="Qtd" class="w-full min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-quantity" value="${escapeHtml(quantity || 1)}">
+        <input type="number" step="0.01" placeholder="R$" class="w-full min-w-0 bg-black p-2 rounded border border-neutral-800 text-xs md:text-sm part-price" value="${escapeHtml(price)}">
         <button type="button" onclick="this.parentElement.remove(); updateDiscountTargets();" class="text-neutral-600 hover:text-red-500 p-1">✕</button>
         <div class="part-suggestions hidden absolute left-0 right-10 top-full mt-1 z-20 bg-black border border-neutral-800 rounded-lg shadow-2xl max-h-56 overflow-y-auto"></div>
     `;
@@ -366,10 +373,13 @@ function applyOSDiscount() {
     }
 
     let targetInput = null;
+    let targetQuantity = 1;
     if (target.startsWith('service-')) {
         targetInput = document.querySelectorAll('.os-service-row')[parseInt(target.replace('service-', ''), 10)]?.querySelector('.service-price');
     } else if (target.startsWith('part-')) {
-        targetInput = document.querySelectorAll('.os-part-row')[parseInt(target.replace('part-', ''), 10)]?.querySelector('.part-price');
+        const partRow = document.querySelectorAll('.os-part-row')[parseInt(target.replace('part-', ''), 10)];
+        targetInput = partRow?.querySelector('.part-price');
+        targetQuantity = Math.max(Number.parseInt(partRow?.querySelector('.part-quantity')?.value, 10) || 1, 1);
     }
 
     if (!targetInput) {
@@ -382,7 +392,7 @@ function applyOSDiscount() {
         ? currentValue * Math.min(discountValue, 100) / 100
         : discountValue;
     const newValue = Math.max(currentValue - discountAmount, 0);
-    const appliedAmount = currentValue - newValue;
+    const appliedAmount = (currentValue - newValue) * targetQuantity;
 
     targetInput.value = newValue.toFixed(2);
     state.currentOSDiscounts.push({
@@ -424,11 +434,13 @@ function getOSFormData() {
     
     partRows.forEach(row => {
         const name = row.querySelector('.part-name').value;
-        const price = parseFloat(row.querySelector('.part-price').value) || 0;
+        const quantity = Math.max(parseInt(row.querySelector('.part-quantity')?.value, 10) || 1, 1);
+        const unitPrice = parseFloat(row.querySelector('.part-price').value) || 0;
+        const price = unitPrice * quantity;
         const exactProduct = state.products.find(product => String(product.name || '').toLowerCase() === name.trim().toLowerCase());
         const productId = row.dataset.productId || exactProduct?.id || '';
-        if (name || price > 0) {
-            parts.push({ name, price, productId });
+        if (name || unitPrice > 0) {
+            parts.push({ name, quantity, unitPrice, price, productId });
             partsTotal += price;
         }
     });
@@ -645,7 +657,11 @@ async function downloadOSPDF(osOrId) {
 
     if (parts.length > 0) {
         parts.forEach(part => {
-            const name = String(part.name || 'Peca').toUpperCase();
+            const quantity = Math.max(Number.parseInt(part.quantity, 10) || 1, 1);
+            const unitPrice = Number(part.unitPrice ?? (quantity > 1 ? Number(part.price || 0) / quantity : part.price || 0));
+            const quantityLabel = quantity > 1 ? `${quantity}X ` : '';
+            const unitLabel = quantity > 1 ? ` (${quantity} x ${money(unitPrice)})` : '';
+            const name = `${quantityLabel}${String(part.name || 'Peca').toUpperCase()}${unitLabel}`;
             const lines = doc.splitTextToSize(name, 130);
             doc.text(lines, 20, y);
             doc.text(money(part.price), 186, y, { align: 'right' });
@@ -827,7 +843,7 @@ function loadOSDraft(id) {
 
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
-    (os.parts || []).forEach(p => addPartRow(p.name, p.price, p.productId));
+    (os.parts || []).forEach(p => addPartRow(p.name, p.unitPrice ?? p.price, p.productId, p.quantity || 1));
     if (!os.parts || os.parts.length === 0) addPartRow();
     state.currentOSDiscounts = [...(os.discounts || [])];
     updateDiscountTargets();
@@ -849,7 +865,7 @@ function editOS(id) {
 
     const container = document.getElementById('os-parts-container');
     container.innerHTML = '';
-    (os.parts || []).forEach(p => addPartRow(p.name, p.price, p.productId));
+    (os.parts || []).forEach(p => addPartRow(p.name, p.unitPrice ?? p.price, p.productId, p.quantity || 1));
     if (!os.parts || os.parts.length === 0) addPartRow();
     state.currentOSDiscounts = [...(os.discounts || [])];
     updateDiscountTargets();
