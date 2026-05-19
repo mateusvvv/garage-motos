@@ -40,6 +40,10 @@ service cloud.firestore {
       allow read, create, update, delete: if isTeamMember();
     }
 
+    match /financeExpenses/{expenseId} {
+      allow read, create, update, delete: if isTeamMember();
+    }
+
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow write: if isAdmin();

@@ -6,6 +6,7 @@ import { showAdminView, updateMenuBadge } from './ui.js';
 import { renderAdminStock } from './products.js';
 import { renderAdminAppointments, initAppointmentsSync } from './appointments.js';
 import { initOrdersSync } from './orders.js';
+import { initFinanceSync } from './finance.js';
 
 function handleBeforeUnload(e) {
     e.preventDefault();
@@ -82,6 +83,7 @@ export function initAuthObserver() {
 
             initAppointmentsSync();
             initOrdersSync();
+            initFinanceSync();
             dashboard.classList.remove('hidden');
             loginUI.classList.add('hidden');
             renderAdminStock();

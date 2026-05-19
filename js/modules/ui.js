@@ -111,6 +111,36 @@ function toggleClosedOrders() {
     if (label) label.textContent = isOpening ? 'Ocultar O.S' : 'Mostrar O.S';
 }
 
+function toggleOSHistory() {
+    const table = document.getElementById('os-history-table');
+    const button = document.getElementById('os-history-toggle');
+    if (!table) return;
+
+    const isOpening = table.classList.contains('hidden');
+    table.classList.toggle('hidden', !isOpening);
+    table.style.display = isOpening ? 'block' : 'none';
+    if (button) {
+        button.setAttribute('aria-expanded', String(isOpening));
+        button.textContent = isOpening ? 'Ocultar O.S' : 'Mostrar O.S';
+    }
+    if (isOpening) window.GM?.renderHistory?.();
+}
+
+function toggleExpenseHistory() {
+    const list = document.getElementById('expense-history-list');
+    const button = document.getElementById('expense-history-toggle');
+    if (!list) return;
+
+    const isOpening = list.classList.contains('hidden');
+    list.classList.toggle('hidden', !isOpening);
+    list.style.display = isOpening ? 'block' : 'none';
+    if (button) {
+        button.setAttribute('aria-expanded', String(isOpening));
+        button.textContent = isOpening ? 'Ocultar Histórico de Saídas' : 'Mostrar Histórico de Saídas';
+    }
+    if (isOpening) window.GM?.renderExpenseList?.();
+}
+
 function updateMenuBadge(count) {
     const mobileBadge = document.getElementById('menu-badge-mobile');
     const desktopBadge = document.getElementById('menu-badge-desktop');
@@ -143,5 +173,7 @@ window.stopAlarm = stopAlarm;
 window.showAdminView = showAdminView;
 window.toggleShop = toggleShop;
 window.toggleClosedOrders = toggleClosedOrders;
+window.toggleOSHistory = toggleOSHistory;
+window.toggleExpenseHistory = toggleExpenseHistory;
 
-export { updateScrollLock, toggleMenu, toggleAdmin, startAlarm, stopAlarm, toggleAdminNav, showAdminView, toggleShop, toggleClosedOrders, updateMenuBadge, toggleMenuShakeAnimation };
+export { updateScrollLock, toggleMenu, toggleAdmin, startAlarm, stopAlarm, toggleAdminNav, showAdminView, toggleShop, toggleClosedOrders, toggleOSHistory, toggleExpenseHistory, updateMenuBadge, toggleMenuShakeAnimation };

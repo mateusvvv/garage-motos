@@ -77,6 +77,7 @@ export const state = {
     products: [],
     openOrders: readStorageArray('gm_open_orders').map(normalizeOrder),
     serviceOrders: readOrdersFromStorage().map(normalizeOrder),
+    financeExpenses: [],
     appointmentRequests: [],
     pickerCalendar: null,
     tempSelectedDate: '',
