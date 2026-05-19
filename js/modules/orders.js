@@ -576,9 +576,36 @@ async function downloadOSPDF(osOrId) {
     const services = os.services || [];
     const discounts = os.discounts || [];
     const money = value => `R$ ${Number(value || 0).toFixed(2)}`;
+    const pageBottom = 266;
+    const listFontSize = 8;
+    const listLineHeight = 4;
+
+    const drawPageBackground = () => {
+        doc.setFillColor(250, 250, 250);
+        doc.rect(0, 0, 210, 297, 'F');
+    };
+
+    const drawFooter = () => {
+        doc.setTextColor(115, 115, 115);
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'normal');
+        doc.text('Garage Motos - Acessorios, Pecas e Servicos', 14, 279);
+        doc.text('@garagemotosbj', 14, 285);
+        doc.setDrawColor(225, 29, 72);
+        doc.line(14, 272, 196, 272);
+    };
+
+    const drawDescriptionHeader = (headerY) => {
+        doc.setFillColor(0, 0, 0);
+        doc.roundedRect(14, headerY, 182, 11, 1.5, 1.5, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.setFont(undefined, 'bold');
+        doc.text('DESCRICAO', 20, headerY + 7);
+        doc.text('VALOR', 186, headerY + 7, { align: 'right' });
+    };
     
-    doc.setFillColor(250, 250, 250);
-    doc.rect(0, 0, 210, 297, 'F');
+    drawPageBackground();
 
     doc.setFillColor(0, 0, 0);
     doc.rect(0, 0, 210, 44, 'F');
@@ -626,18 +653,50 @@ async function downloadOSPDF(osOrId) {
     const obsLines = doc.splitTextToSize(String(os.observations || 'NADA CONSTA').toUpperCase(), 170);
     doc.text(obsLines, 22, 90);
 
-    doc.setFillColor(0, 0, 0);
-    doc.roundedRect(14, 114, 182, 11, 1.5, 1.5, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'bold');
-    doc.text('DESCRICAO', 20, 121);
-    doc.text('VALOR', 186, 121, { align: 'right' });
+    drawDescriptionHeader(114);
 
     let y = 136;
     doc.setTextColor(0, 0, 0);
-    doc.setFontSize(10);
+    doc.setFontSize(listFontSize);
     doc.setFont(undefined, 'normal');
+
+    const startContinuationPage = () => {
+        drawFooter();
+        doc.addPage();
+        drawPageBackground();
+        doc.setTextColor(0, 0, 0);
+        doc.setFont(undefined, 'bold');
+        doc.setFontSize(11);
+        doc.text(`ORDEM DE SERVICO #${formatOSNumber(os)} - CONTINUACAO`, 14, 18);
+        drawDescriptionHeader(26);
+        y = 48;
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(listFontSize);
+        doc.setFont(undefined, 'normal');
+    };
+
+    const ensureRowSpace = (height) => {
+        if (y + height > pageBottom) startContinuationPage();
+    };
+
+    const drawLineSeparator = () => {
+        doc.setDrawColor(235, 235, 235);
+        doc.line(20, y, 190, y);
+        y += 4;
+    };
+
+    const drawItemRow = (description, value, color = [0, 0, 0], bold = false) => {
+        const lines = doc.splitTextToSize(description, 128);
+        const rowHeight = Math.max(8, lines.length * listLineHeight + 5);
+        ensureRowSpace(rowHeight + 4);
+        doc.setTextColor(...color);
+        doc.setFont(undefined, bold ? 'bold' : 'normal');
+        doc.setFontSize(listFontSize);
+        doc.text(lines, 20, y);
+        doc.text(value, 186, y, { align: 'right' });
+        y += rowHeight;
+        drawLineSeparator();
+    };
 
     if (services.length > 0) {
         services.forEach(service => {
@@ -645,13 +704,7 @@ async function downloadOSPDF(osOrId) {
             const mechanicLabels = { leo: 'LEO', wandson: 'WANDSON' };
             const detail = `${mechanicLabels[service.mechanic] || String(service.mechanic || '').toUpperCase()} | ${paymentLabels[service.paymentMethod] || String(service.paymentMethod || '').toUpperCase()}`;
             const name = `${String(service.name || 'Servico').toUpperCase()} (${detail})`;
-            const lines = doc.splitTextToSize(name, 130);
-            doc.text(lines, 20, y);
-            doc.text(money(service.price), 186, y, { align: 'right' });
-            y += Math.max(10, lines.length * 5 + 4);
-            doc.setDrawColor(235, 235, 235);
-            doc.line(20, y, 190, y);
-            y += 6;
+            drawItemRow(name, money(service.price));
         });
     }
 
@@ -662,41 +715,26 @@ async function downloadOSPDF(osOrId) {
             const quantityLabel = quantity > 1 ? `${quantity}X ` : '';
             const unitLabel = quantity > 1 ? ` (${quantity} x ${money(unitPrice)})` : '';
             const name = `${quantityLabel}${String(part.name || 'Peca').toUpperCase()}${unitLabel}`;
-            const lines = doc.splitTextToSize(name, 130);
-            doc.text(lines, 20, y);
-            doc.text(money(part.price), 186, y, { align: 'right' });
-            y += Math.max(10, lines.length * 5 + 4);
-            doc.setDrawColor(235, 235, 235);
-            doc.line(20, y, 190, y);
-            y += 6;
+            drawItemRow(name, money(part.price));
         });
     } else {
-        doc.setTextColor(115, 115, 115);
-        doc.text('Nenhuma peca adicionada.', 20, y);
-        y += 11;
+        drawItemRow('Nenhuma peca adicionada.', '', [115, 115, 115]);
     }
 
     if (discounts.length > 0) {
-        doc.setTextColor(225, 29, 72);
-        doc.setFont(undefined, 'bold');
         discounts.forEach(discount => {
             const discountText = discount.type === 'percent'
                 ? `Desconto em ${discount.target} (${Number(discount.value || 0).toFixed(2)}%)`
                 : `Desconto em ${discount.target}`;
-            const lines = doc.splitTextToSize(discountText.toUpperCase(), 130);
-            doc.text(lines, 20, y);
-            doc.text(`- ${money(discount.amount)}`, 186, y, { align: 'right' });
-            y += Math.max(10, lines.length * 5 + 4);
-            doc.setDrawColor(235, 235, 235);
-            doc.line(20, y, 190, y);
-            y += 6;
+            drawItemRow(discountText.toUpperCase(), `- ${money(discount.amount)}`, [225, 29, 72], true);
         });
         doc.setFont(undefined, 'normal');
         doc.setTextColor(0, 0, 0);
     }
 
-    const totalsY = Math.max(y + 8, 218);
     const totalsHeight = discounts.length > 0 ? 43 : 34;
+    if (y + 8 + totalsHeight > pageBottom) startContinuationPage();
+    const totalsY = doc.internal.getNumberOfPages() === 1 ? Math.max(y + 8, 218) : y + 8;
     doc.setFillColor(245, 245, 245);
     doc.roundedRect(118, totalsY, 78, totalsHeight, 2, 2, 'F');
     doc.setTextColor(90, 90, 90);
@@ -717,12 +755,7 @@ async function downloadOSPDF(osOrId) {
     doc.text('TOTAL', 126, totalsY + (discounts.length > 0 ? 42 : 33));
     doc.text(money(os.total), 188, totalsY + (discounts.length > 0 ? 42 : 33), { align: 'right' });
 
-    doc.setTextColor(115, 115, 115);
-    doc.setFontSize(8);
-    doc.text('Garage Motos - Acessorios, Pecas e Servicos', 14, 279);
-    doc.text('@garagemotosbj', 14, 285);
-    doc.setDrawColor(225, 29, 72);
-    doc.line(14, 272, 196, 272);
+    drawFooter();
     
     doc.save(`OS_${formatOSNumber(os, 0, 5)}.pdf`);
 }
