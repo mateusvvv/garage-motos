@@ -1,5 +1,5 @@
 import { auth, db, firebaseConfig } from '../../firebase-config.js';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocsFromServer, runTransaction } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocsFromServer, runTransaction, query, limit } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { toBase64, loadImageForPDF } from '../core/utils.js';
 
@@ -114,7 +114,9 @@ function initProductsSync() {
     }
     productsSyncStarted = true;
 
+    // Limitamos a 24 itens (bom para grids de 2, 3 ou 4 colunas)
     const productsCol = collection(db, "products");
+    const productsQuery = query(productsCol, limit(24));
 
     // Adiciona o ouvinte de busca apenas uma vez
     const searchInput = document.getElementById('shop-search');
@@ -126,19 +128,12 @@ function initProductsSync() {
     localStorage.removeItem('gm_products_cache_v1');
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
-    loadProductsOnce(productsCol);
 
-    const fallbackTimer = setTimeout(() => {
-        if (!hasProductsLoaded) loadProductsOnce(productsCol);
-    }, 3000);
-
-    onSnapshot(productsCol, { includeMetadataChanges: true }, (snapshot) => {
-        clearTimeout(fallbackTimer);
+    onSnapshot(productsQuery, { includeMetadataChanges: true }, (snapshot) => {
         if (snapshot.metadata.fromCache) return;
         setProductsFromSnapshot(snapshot);
         if (auth.currentUser) renderAdminStock(document.getElementById('stock-search')?.value || '');
     }, async (error) => {
-        clearTimeout(fallbackTimer);
         console.error("Erro ao sincronizar produtos em tempo real:", error);
         await loadProductsOnce(productsCol);
     });

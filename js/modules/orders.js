@@ -1,5 +1,5 @@
 import { db } from '../../firebase-config.js';
-import { collection, deleteDoc, doc, getDocs, getDocsFromServer, onSnapshot, setDoc, writeBatch } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, deleteDoc, doc, getDocs, getDocsFromServer, onSnapshot, setDoc, writeBatch, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { loadImageForPDF } from '../core/utils.js';
 import { decrementProductsStock, renderAdminStock } from './products.js';
@@ -136,7 +136,14 @@ function initOrdersSync() {
     }
     ordersSyncStarted = true;
 
-    onSnapshot(collection(db, SERVICE_ORDERS_COLLECTION), async (snapshot) => {
+    // Criamos uma consulta (query) com limite e ordenação
+    const ordersQuery = query(
+        collection(db, SERVICE_ORDERS_COLLECTION),
+        orderBy('osNumber', 'desc'), 
+        limit(20)
+    );
+
+    onSnapshot(ordersQuery, async (snapshot) => {
         const migrated = await migrateLocalOrdersIfNeeded(snapshot);
         if (migrated) {
             refreshOrdersUI();
@@ -165,52 +172,12 @@ function initOrdersSync() {
         console.error('Erro ao sincronizar O.S em aberto com o Firestore:', error);
         refreshOrdersUI();
     });
-
-    startOrdersFallbackRefresh();
-    setTimeout(() => refreshOrdersFromServer(), 5000);
 }
 
 async function refreshOrdersFromServer() {
-    if (ordersRefreshInProgress) return;
-    ordersRefreshInProgress = true;
-
-    try {
-        const [serviceSnapshot, openSnapshot] = await Promise.all([
-            getDocsFromServer(collection(db, SERVICE_ORDERS_COLLECTION)),
-            getDocsFromServer(collection(db, OPEN_ORDERS_COLLECTION))
-        ]);
-
-        const migratedServiceOrders = await migrateLocalOrdersIfNeeded(serviceSnapshot);
-        const migratedOpenOrders = await migrateLocalOpenOrdersIfNeeded(openSnapshot);
-
-        if (!migratedServiceOrders) {
-            state.serviceOrders = serviceSnapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
-        }
-
-        if (!migratedOpenOrders) {
-            state.openOrders = openSnapshot.docs.map(item => normalizeSyncedOrder(item.data(), item.id));
-        }
-
-        persistOrdersCache();
-        refreshOrdersUI();
-    } catch (error) {
-        console.warn('Atualização de segurança das O.S falhou:', error);
-    } finally {
-        ordersRefreshInProgress = false;
-    }
-}
-
-function startOrdersFallbackRefresh() {
-    if (ordersFallbackTimer) return;
-
-    ordersFallbackTimer = setInterval(() => {
-        if (!document.hidden) refreshOrdersFromServer();
-    }, ORDERS_FALLBACK_REFRESH_INTERVAL);
-
-    window.addEventListener('focus', () => refreshOrdersFromServer());
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) setTimeout(() => refreshOrdersFromServer(), 250);
-    });
+    // Removido para evitar consumo excessivo de cotas. 
+    // O onSnapshot já garante os dados em tempo real.
+    return;
 }
 
 async function saveServiceOrder(osData) {
