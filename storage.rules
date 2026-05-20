@@ -1,0 +1,31 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Funções auxiliares baseadas na sua equipe
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isTeamMember() {
+      return isSignedIn() &&
+        request.auth.token.email in ["leonardo1412goncalves@gmail.com", "garagemotos@gmail.com"];
+    }
+
+    function isAdmin() {
+      return isSignedIn() &&
+        request.auth.token.email == "leonardo1412goncalves@gmail.com";
+    }
+
+    // Regras para a pasta de produtos
+    match /products/{allPaths=**} {
+      // Qualquer um pode visualizar as imagens das peças
+      allow read: if true;
+      // Apenas a equipe pode fazer upload ou atualizar fotos
+      allow write: if isTeamMember();
+      // Apenas o administrador pode excluir arquivos permanentemente
+      allow delete: if isAdmin();
+    }
+  }
+}

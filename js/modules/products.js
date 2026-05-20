@@ -1,5 +1,6 @@
-import { auth, db, firebaseConfig } from '../../firebase-config.js';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocsFromServer, runTransaction, query, limit } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { auth, db, firebaseConfig, storage } from '../../firebase-config.js';
+import { collection, addDoc, onSnapshot, deleteDoc, doc, setDoc, getDocsFromServer, runTransaction, query, limit, startAfter, getDocs, where } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js';
 import { state } from '../core/state.js';
 import { toBase64, loadImageForPDF } from '../core/utils.js';
 
@@ -51,7 +52,14 @@ function applyProducts(products = []) {
         retryTimer = null;
     }
 
-    state.products = sortProductsByName(products.map(normalizeProduct).filter(product => product.id));
+    // Se for a primeira carga, substitui. Se for "carregar mais", adiciona.
+    const newProducts = products.map(normalizeProduct).filter(product => product.id);
+    
+    // Evita duplicatas ao mesclar
+    const existingIds = new Set(state.products.map(p => p.id));
+    const filteredNew = newProducts.filter(p => !existingIds.has(p.id));
+    
+    state.products = sortProductsByName([...state.products, ...filteredNew]);
 
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
@@ -67,29 +75,25 @@ async function addProduct(e) {
     const location = document.getElementById('prod-location').value;
     const imgFile = document.getElementById('prod-image').files[0];
 
-    let imgBase64 = '';
+    let imageUrl = '';
     if (imgFile) {
-        // Validação de tamanho da imagem antes de converter para Base64
-        // Firestore tem limite de 1MB por documento. Base64 aumenta o tamanho em ~33%.
-        if (imgFile.size > 750 * 1024) { // Aproximadamente 750KB de arquivo bruto
-            alert("A imagem é muito grande! Por favor, selecione uma imagem menor (máx. 750KB) para evitar problemas de armazenamento no Firebase.");
-            return; // Impede o processamento e o salvamento
-        }
-        imgBase64 = await toBase64(imgFile);
+        const storageRef = ref(storage, `products/${Date.now()}_${imgFile.name}`);
+        const uploadResult = await uploadBytes(storageRef, imgFile);
+        imageUrl = await getDownloadURL(uploadResult.ref);
     }
 
     const productData = {
         name,
         price: parseFloat(price),
         stock: parseInt(stock),
-        image: imgBase64 || '',
+        image: imageUrl || '',
         location: location || ''
     };
 
     try {
         if (id) {
             const product = state.products.find(p => p.id === id);
-            if (!imgBase64 && product) productData.image = product.image;
+            if (!imageUrl && product) productData.image = product.image;
             await setDoc(doc(db, "products", id), productData);
         } else {
             await addDoc(collection(db, "products"), productData);
@@ -114,15 +118,39 @@ function initProductsSync() {
     }
     productsSyncStarted = true;
 
-    // Limitamos a 24 itens (bom para grids de 2, 3 ou 4 colunas)
+    // Aumentamos o limite para 500 itens para exibir mais produtos e melhorar a busca local
     const productsCol = collection(db, "products");
-    const productsQuery = query(productsCol, limit(24));
+    const productsQuery = query(productsCol, limit(500));
 
     // Adiciona o ouvinte de busca apenas uma vez
     const searchInput = document.getElementById('shop-search');
     if (searchInput && !searchInput.dataset.listener) {
-        searchInput.addEventListener('input', () => renderShop());
+        let searchTimeout;
+        searchInput.addEventListener('input', () => {
+            renderShop(); // Filtro local imediato
+            
+            // Busca remota após 800ms de pausa na digitação
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const term = searchInput.value.trim();
+                if (term.length >= 3) performServerSearch(term);
+            }, 800);
+        });
         searchInput.dataset.listener = 'true';
+    }
+
+    const adminSearch = document.getElementById('stock-search');
+    if (adminSearch && !adminSearch.dataset.listener) {
+        let adminTimeout;
+        adminSearch.addEventListener('input', () => {
+            renderAdminStock();
+            clearTimeout(adminTimeout);
+            adminTimeout = setTimeout(() => {
+                const term = adminSearch.value.trim();
+                if (term.length >= 3) performServerSearch(term);
+            }, 800);
+        });
+        adminSearch.dataset.listener = 'true';
     }
 
     localStorage.removeItem('gm_products_cache_v1');
@@ -148,11 +176,68 @@ function reloadProducts() {
 }
 
 function setProductsFromSnapshot(snapshot) {
+    if (snapshot.docs.length > 0) {
+        state.lastProductDoc = snapshot.docs[snapshot.docs.length - 1];
+    }
     const products = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
     }));
     applyProducts(products);
+}
+
+async function performServerSearch(term) {
+    if (!term || term.length < 3) return;
+
+    const productsCol = collection(db, "products");
+    
+    // O Firestore é case-sensitive. Tentamos buscar o termo com a primeira letra maiúscula
+    // que é o padrão comum de cadastro (ex: "Pneu", "Câmara").
+    const capitalizedTerm = term.charAt(0).toUpperCase() + term.slice(1);
+
+    const q = query(
+        productsCol,
+        where('name', '>=', capitalizedTerm),
+        where('name', '<=', capitalizedTerm + '\uf8ff'),
+        limit(15)
+    );
+
+    try {
+        const snapshot = await getDocs(q);
+        if (!snapshot.empty) {
+            const results = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            applyProducts(results); // O applyProducts já faz o merge sem duplicar IDs
+        }
+    } catch (error) {
+        console.error("Erro na busca remota de produtos:", error);
+    }
+}
+
+async function loadMoreProducts() {
+    if (!state.lastProductDoc) return;
+
+    const btn = document.getElementById('load-more-btn');
+    if (btn) btn.textContent = 'Carregando...';
+
+    try {
+        const productsCol = collection(db, "products");
+        const nextQuery = query(
+            productsCol, 
+            limit(50), 
+            startAfter(state.lastProductDoc)
+        );
+
+        const snapshot = await getDocs(nextQuery);
+        setProductsFromSnapshot(snapshot);
+        
+        if (snapshot.docs.length < 50 && btn) {
+            btn.classList.add('hidden');
+        }
+    } catch (error) {
+        console.error("Erro ao carregar mais produtos:", error);
+    } finally {
+        if (btn && btn.textContent === 'Carregando...') btn.textContent = 'Carregar Mais';
+    }
 }
 
 async function loadProductsOnce(productsCol = collection(db, "products")) {
@@ -294,6 +379,16 @@ function editProduct(id) {
 
 async function deleteProduct(id) {
     if (confirm('Deseja realmente excluir este produto do estoque?')) {
+        const p = state.products.find(prod => prod.id === id);
+        // Se a imagem for um link do Firebase Storage, tentamos deletar o arquivo também
+        if (p && p.image && p.image.includes('firebasestorage.googleapis.com')) {
+            try {
+                const imageRef = ref(storage, p.image);
+                await deleteObject(imageRef);
+            } catch (err) {
+                console.error("Erro ao deletar imagem do storage:", err);
+            }
+        }
         await deleteDoc(doc(db, "products", id));
     }
 }
@@ -667,5 +762,11 @@ async function printLowStockReport() {
 // Torna as funções acessíveis para os botões HTML (onclick)
 window.reserveProduct = reserveProduct;
 window.renderShop = renderShop;
+window.loadMoreProducts = loadMoreProducts;
+window.reloadProducts = reloadProducts;
+window.printLowStockReport = printLowStockReport;
+window.deleteAllProducts = deleteAllProducts;
+window.editProduct = editProduct;
+window.deleteProduct = deleteProduct;
 
-export { addProduct, initProductsSync, reloadProducts, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, reserveProduct, decrementProductsStock, formatStockLabel, renderAdminStock, printLowStockReport };
+export { addProduct, initProductsSync, reloadProducts, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, reserveProduct, decrementProductsStock, formatStockLabel, renderAdminStock, printLowStockReport, loadMoreProducts };

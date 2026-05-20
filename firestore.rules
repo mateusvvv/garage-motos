@@ -27,7 +27,8 @@ service cloud.firestore {
 
     match /appointments/{appointmentId} {
       allow read: if isTeamMember();
-      allow create: if true;
+      // Visitantes podem criar solicitações ('request'), mas apenas a equipe pode criar outros tipos (como 'block')
+      allow create: if (request.resource.data.type == 'request') || isTeamMember();
       allow update, delete: if isTeamMember();
     }
 
@@ -47,6 +48,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       allow write: if isAdmin();
+    }
+
+    // Bloqueio padrão para qualquer outra coleção ou caminho não especificado
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

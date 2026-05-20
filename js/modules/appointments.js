@@ -18,7 +18,7 @@ function initCalendar() {
         businessHours: {
             daysOfWeek: [1, 2, 3, 4, 5], // Segunda a Sexta
         },
-        events: [],
+        events: state.appointmentRequests,
         eventContent: function(arg) {
             const type = arg.event.extendedProps.type;
             if (type === 'request') { // Agendamento de serviço
