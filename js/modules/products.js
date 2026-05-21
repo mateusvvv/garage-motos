@@ -7,9 +7,13 @@ import { toBase64, loadImageForPDF } from '../core/utils.js';
 let hasProductsLoaded = false;
 let productsLoadFailed = false;
 let productsSyncStarted = false;
+let productImagesHydrationStarted = false;
+let productsRealtimeStarted = false;
 let retryTimer = null;
-const PRODUCTS_LOAD_TIMEOUT = 8000;
+const PRODUCTS_LOAD_TIMEOUT = 3000;
 const PRODUCTS_RETRY_DELAY = 5000;
+const PRODUCTS_CACHE_KEY = 'gm_products_cache_v2';
+const PRODUCTS_CACHE_TTL = 5 * 60 * 1000;
 const productNameCollator = new Intl.Collator('pt-BR', {
     sensitivity: 'base',
     numeric: true,
@@ -44,7 +48,38 @@ function sortProductsByName(products = []) {
     });
 }
 
-function applyProducts(products = []) {
+function mergeProductData(previous = {}, product = {}) {
+    const merged = { ...previous, ...product };
+    if (!('image' in product) || product.image === '') {
+        merged.image = previous.image || '';
+    }
+    return normalizeProduct(merged);
+}
+
+function readProductsCache() {
+    try {
+        const cached = JSON.parse(localStorage.getItem(PRODUCTS_CACHE_KEY) || 'null');
+        if (!cached || !Array.isArray(cached.products)) return false;
+        if (Date.now() - Number(cached.savedAt || 0) > PRODUCTS_CACHE_TTL) return false;
+        applyProducts(cached.products, true);
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
+function writeProductsCache(products = []) {
+    try {
+        localStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify({
+            savedAt: Date.now(),
+            products
+        }));
+    } catch (_) {
+        // Imagens antigas em base64 podem ultrapassar a cota local; nesse caso seguimos sem cache.
+    }
+}
+
+function applyProducts(products = [], replace = false) {
     hasProductsLoaded = true;
     productsLoadFailed = false;
     if (retryTimer) {
@@ -52,14 +87,23 @@ function applyProducts(products = []) {
         retryTimer = null;
     }
 
-    // Se for a primeira carga, substitui. Se for "carregar mais", adiciona.
-    const newProducts = products.map(normalizeProduct).filter(product => product.id);
-    
-    // Evita duplicatas ao mesclar
-    const existingIds = new Set(state.products.map(p => p.id));
-    const filteredNew = newProducts.filter(p => !existingIds.has(p.id));
-    
-    state.products = sortProductsByName([...state.products, ...filteredNew]);
+    if (replace) {
+        const currentProductMap = new Map(state.products.map(p => [p.id, p]));
+        const normalized = products
+            .map(p => mergeProductData(currentProductMap.get(String(p.id || '')), p))
+            .filter(p => p.id);
+        state.products = sortProductsByName(normalized);
+    } else {
+        const productMap = new Map(state.products.map(p => [p.id, p]));
+        products.forEach(product => {
+            const id = String(product.id || '');
+            if (!id) return;
+            const previous = productMap.get(id);
+            if (!previous && !('name' in product)) return;
+            productMap.set(id, mergeProductData(previous, product));
+        });
+        state.products = sortProductsByName(Array.from(productMap.values()));
+    }
 
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
@@ -93,8 +137,9 @@ async function addProduct(e) {
     try {
         if (id) {
             const product = state.products.find(p => p.id === id);
-            if (!imageUrl && product) productData.image = product.image;
-            await setDoc(doc(db, "products", id), productData);
+            if (!imageUrl && product?.image) productData.image = product.image;
+            if (!imageUrl && !product?.image) delete productData.image;
+            await setDoc(doc(db, "products", id), productData, { merge: true });
         } else {
             await addDoc(collection(db, "products"), productData);
         }
@@ -110,13 +155,16 @@ async function addProduct(e) {
     }
 }
 
-function initProductsSync() {
-    if (productsSyncStarted) {
+function initProductsSync(useRealtime = false) {
+    if (productsSyncStarted && (!useRealtime || productsRealtimeStarted)) {
         renderShop();
         renderAdminStock(document.getElementById('stock-search')?.value || '');
         return;
     }
-    productsSyncStarted = true;
+    if (!productsSyncStarted) {
+        productsSyncStarted = true;
+        hasProductsLoaded = false; // Garante estado inicial correto
+    }
 
     // Aumentamos o limite para 500 itens para exibir mais produtos e melhorar a busca local
     const productsCol = collection(db, "products");
@@ -157,14 +205,25 @@ function initProductsSync() {
     renderShop();
     renderAdminStock(document.getElementById('stock-search')?.value || '');
 
-    onSnapshot(productsQuery, { includeMetadataChanges: true }, (snapshot) => {
-        if (snapshot.metadata.fromCache) return;
-        setProductsFromSnapshot(snapshot);
-        if (auth.currentUser) renderAdminStock(document.getElementById('stock-search')?.value || '');
-    }, async (error) => {
-        console.error("Erro ao sincronizar produtos em tempo real:", error);
-        await loadProductsOnce(productsCol);
-    });
+    if (!hasProductsLoaded && !readProductsCache()) {
+        loadProductsFromRest(productsQuery, true);
+    }
+
+    if (useRealtime && !productsRealtimeStarted) {
+        productsRealtimeStarted = true;
+        onSnapshot(productsQuery, (snapshot) => {
+            if (snapshot.metadata.fromCache) {
+                return;
+            }
+            // O snapshot representa o resultado completo da consulta atual.
+            setProductsFromSnapshot(snapshot, true);
+            writeProductsCache(state.products);
+            if (auth.currentUser) renderAdminStock(document.getElementById('stock-search')?.value || '');
+        }, async (error) => {
+            console.error("Erro ao sincronizar produtos em tempo real:", error);
+            await loadProductsOnce(productsQuery);
+        });
+    }
 }
 
 function reloadProducts() {
@@ -175,7 +234,7 @@ function reloadProducts() {
     return loadProductsOnce();
 }
 
-function setProductsFromSnapshot(snapshot) {
+function setProductsFromSnapshot(snapshot, replace = false) {
     if (snapshot.docs.length > 0) {
         state.lastProductDoc = snapshot.docs[snapshot.docs.length - 1];
     }
@@ -183,7 +242,7 @@ function setProductsFromSnapshot(snapshot) {
         id: doc.id,
         ...doc.data()
     }));
-    applyProducts(products);
+    applyProducts(products, replace);
 }
 
 async function performServerSearch(term) {
@@ -228,7 +287,7 @@ async function loadMoreProducts() {
         );
 
         const snapshot = await getDocs(nextQuery);
-        setProductsFromSnapshot(snapshot);
+        setProductsFromSnapshot(snapshot, false);
         
         if (snapshot.docs.length < 50 && btn) {
             btn.classList.add('hidden');
@@ -243,11 +302,11 @@ async function loadMoreProducts() {
 async function loadProductsOnce(productsCol = collection(db, "products")) {
     try {
         const snapshot = await withTimeout(getDocsFromServer(productsCol), PRODUCTS_LOAD_TIMEOUT);
-        setProductsFromSnapshot(snapshot);
+        setProductsFromSnapshot(snapshot, true);
         return true;
     } catch (error) {
         if (hasProductsLoaded && !productsLoadFailed) return true;
-        console.error("Erro ao carregar produtos pelo SDK:", error);
+        console.warn("Carregamento pelo SDK demorou demais; tentando fallback REST:", error);
         return loadProductsFromRest(productsCol);
     }
 }
@@ -261,7 +320,7 @@ function withTimeout(promise, timeoutMs) {
     ]);
 }
 
-async function loadProductsFromRest(productsCol = collection(db, "products")) {
+async function loadProductsFromRest(productsCol = collection(db, "products"), includeImages = true) {
     try {
         const headers = {};
 
@@ -275,8 +334,13 @@ async function loadProductsFromRest(productsCol = collection(db, "products")) {
         do {
             const params = new URLSearchParams({
                 key: firebaseConfig.apiKey,
-                pageSize: '300'
+                pageSize: '500'
             });
+            if (!includeImages) {
+                ['name', 'price', 'stock', 'location'].forEach(field => {
+                    params.append('mask.fieldPaths', field);
+                });
+            }
             if (pageToken) params.set('pageToken', pageToken);
 
             const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents/products?${params.toString()}`;
@@ -293,7 +357,9 @@ async function loadProductsFromRest(productsCol = collection(db, "products")) {
             pageToken = payload.nextPageToken || '';
         } while (pageToken);
 
-        applyProducts(products);
+        applyProducts(products, true);
+        if (includeImages) writeProductsCache(products);
+        if (!includeImages) hydrateProductImagesFromRest(products.map(product => product.id));
         return true;
     } catch (error) {
         if (hasProductsLoaded && !productsLoadFailed) return true;
@@ -308,7 +374,64 @@ async function loadProductsFromRest(productsCol = collection(db, "products")) {
     }
 }
 
+async function hydrateProductImagesFromRest(productIds = []) {
+    if (productImagesHydrationStarted) return;
+
+    const idsToHydrate = [...new Set(productIds)]
+        .filter(id => id && !state.products.find(product => product.id === id)?.image);
+
+    if (idsToHydrate.length === 0) return;
+    productImagesHydrationStarted = true;
+
+    try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (auth.currentUser) {
+            headers.Authorization = `Bearer ${await auth.currentUser.getIdToken()}`;
+        }
+
+        const chunkSize = 40;
+        for (let index = 0; index < idsToHydrate.length; index += chunkSize) {
+            const chunk = idsToHydrate.slice(index, index + chunkSize);
+            const url = `https://firestore.googleapis.com/v1/projects/${firebaseConfig.projectId}/databases/(default)/documents:batchGet?key=${firebaseConfig.apiKey}`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    documents: chunk.map(id => `projects/${firebaseConfig.projectId}/databases/(default)/documents/products/${id}`),
+                    mask: { fieldPaths: ['image'] }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`REST imagens ${response.status}: ${await response.text()}`);
+            }
+
+            const payload = await response.json();
+            const imageUpdates = payload
+                .map(item => item.found)
+                .filter(Boolean)
+                .map(doc => ({
+                    id: doc.name.split('/').pop(),
+                    ...parseFirestoreFields(doc.fields || {})
+                }))
+                .filter(product => product.image);
+
+            if (imageUpdates.length > 0) {
+                applyProducts(imageUpdates, false);
+            }
+        }
+    } catch (error) {
+        console.warn('Não foi possível carregar as imagens do catálogo em segundo plano:', error);
+    }
+}
+
 function scheduleProductsRetry(productsCol) {
+    // Se a falha for por falta de conexão ou cota, evitamos retentativas agressivas
+    if (productsLoadFailed && productsSyncStarted) {
+        console.warn("Retentativa de carregamento de produtos pausada para evitar consumo de cota.");
+        return;
+    }
+
     if (retryTimer) return;
     retryTimer = setTimeout(() => {
         retryTimer = null;

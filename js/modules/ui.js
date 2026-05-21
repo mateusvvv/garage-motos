@@ -5,7 +5,8 @@ function updateScrollLock() {
     const isMenuOpen = !document.getElementById('main-menu')?.classList.contains('hidden');
     const isAdminOpen = !document.getElementById('admin-panel')?.classList.contains('hidden');
     const isPickerOpen = !document.getElementById('appointment-picker-overlay')?.classList.contains('hidden');
-    document.body.style.overflow = (isMenuOpen || isAdminOpen || isPickerOpen) ? 'hidden' : '';
+    const isAdminCalendarOpen = !document.getElementById('admin-calendar-overlay')?.classList.contains('hidden');
+    document.body.style.overflow = (isMenuOpen || isAdminOpen || isPickerOpen || isAdminCalendarOpen) ? 'hidden' : '';
 }
 
 
@@ -57,15 +58,9 @@ function showAdminView(viewName) {
         'financeiro': 'FINANCEIRO'
     };
 
-    // Restrição de acesso à área financeira para colaboradores
-    if (viewName === 'financeiro' && state.currentUserRole === 'collaborator') {
-        alert("Acesso restrito: Apenas administradores podem visualizar a área financeira.");
-        return;
-    }
-
-    // Esconde/Mostra tabs baseado no cargo
+    // O painel só aparece para usuários logados; a regra do Firebase limita os dados à equipe.
     const financeBtn = document.getElementById('btn-tab-financeiro');
-    if (financeBtn) financeBtn.style.display = (state.currentUserRole === 'admin') ? 'flex' : 'none';
+    if (financeBtn) financeBtn.style.display = 'flex';
 
     // Esconde todas as views
     document.querySelectorAll('.admin-view').forEach(v => v.classList.add('hidden'));
@@ -90,6 +85,11 @@ function showAdminView(viewName) {
         window.GM?.refreshFinanceDashboard?.();
         requestAnimationFrame(() => window.GM?.refreshFinanceDashboard?.());
         setTimeout(() => window.GM?.refreshFinanceDashboard?.(), 250);
+    }
+
+    if (viewName === 'estoque') {
+        window.GM?.renderAdminStock?.();
+        requestAnimationFrame(() => window.GM?.renderAdminStock?.());
     }
 }
 

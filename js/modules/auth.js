@@ -3,7 +3,7 @@ import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'https:/
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { showAdminView, updateMenuBadge } from './ui.js';
-import { renderAdminStock } from './products.js';
+import { renderAdminStock, initProductsSync } from './products.js';
 import { renderAdminAppointments, initAppointmentsSync, initAdminCalendar } from './appointments.js';
 import { initOrdersSync } from './orders.js';
 import { initFinanceSync } from './finance.js';
@@ -81,6 +81,7 @@ export function initAuthObserver() {
             const btnDeleteAll = document.getElementById('btn-delete-all');
             if (btnDeleteAll) btnDeleteAll.style.display = (state.currentUserRole === 'admin') ? 'block' : 'none';
 
+            initProductsSync(true);
             initAppointmentsSync();
             initOrdersSync();
             initFinanceSync();
@@ -99,6 +100,7 @@ export function initAuthObserver() {
             window.removeEventListener('beforeunload', handleBeforeUnload);
         }
     });
+
 }
 
 window.logoutAdmin = logoutAdmin;
