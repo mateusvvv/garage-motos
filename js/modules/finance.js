@@ -585,9 +585,9 @@ function printProfitReportPDF() {
     const doc = new jsPDF();
     const money = value => `R$ ${Number(value || 0).toFixed(2)}`;
     const reportTitles = {
-        complete: 'RELATORIO COMPLETO',
-        expenses: 'RELATORIO DE SAIDAS',
-        profit: 'RELATORIO DE LUCRO'
+        complete: 'RELATÓRIO COMPLETO',
+        expenses: 'RELATÓRIO DE SAÍDAS',
+        profit: 'RELATÓRIO DE LUCRO'
     };
     const reportFileNames = {
         complete: 'relatorio_completo',
@@ -604,7 +604,7 @@ function printProfitReportPDF() {
         doc.setTextColor(115, 115, 115);
         doc.setFontSize(8);
         doc.setFont(undefined, 'normal');
-        doc.text(`Garage Motos - Relatorio emitido em ${new Date().toLocaleDateString('pt-BR')}`, 14, 282);
+        doc.text(`Garage Motos - Relatório emitido em ${new Date().toLocaleDateString('pt-BR')}`, 14, 282);
     };
 
     const addPageIfNeeded = (height = 14) => {
@@ -627,7 +627,7 @@ function printProfitReportPDF() {
         doc.text(reportTitles[reportType] || reportTitles.complete, 14, 20);
         doc.setFontSize(10);
         doc.setTextColor(225, 29, 72);
-        doc.text(`MES ${monthKey}`, 14, 29);
+        doc.text(`MÊS ${monthKey}`, 14, 29);
     };
 
     const drawSectionTitle = (title) => {
@@ -696,9 +696,9 @@ function printProfitReportPDF() {
 
     if (shouldShowProfitDetails) {
         y += 8;
-        drawSectionTitle('Entradas / lucro do mes');
+        drawSectionTitle('Entradas / lucro do mês');
         if (orders.length === 0) {
-            drawRow('Nenhuma O.S finalizada neste mes.', '', [115, 115, 115]);
+            drawRow('Nenhuma O.S finalizada neste mês.', '', [115, 115, 115]);
         } else {
             orders
                 .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
@@ -711,12 +711,12 @@ function printProfitReportPDF() {
 
     if (shouldShowExpenseDetails) {
         y += 8;
-        drawSectionTitle('Saidas do mes');
+        drawSectionTitle('Saídas do mês');
         if (expenses.length === 0) {
-            drawRow('Nenhuma saida lancada neste mes.', '', [115, 115, 115]);
+            drawRow('Nenhuma saída lançada neste mês.', '', [115, 115, 115]);
         } else {
             expenses.forEach(expense => {
-            const description = `${toBRDate(expense.date)} - ${String(expense.description || 'Saida').toUpperCase()}${expense.category ? ` (${String(expense.category).toUpperCase()})` : ''}`;
+            const description = `${toBRDate(expense.date)} - ${String(expense.description || 'Saída').toUpperCase()}${expense.category ? ` (${String(expense.category).toUpperCase()})` : ''}`;
                 drawRow(description, money(expense.amount), [225, 29, 72]);
             });
         }

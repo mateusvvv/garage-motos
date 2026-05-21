@@ -695,7 +695,7 @@ async function printLowStockReport() {
     doc.text('LISTA DE COMPRAS', 196, 19, { align: 'right' });
     doc.setTextColor(225, 29, 72);
     doc.setFontSize(10);
-    doc.text('REPOSICAO DE ESTOQUE', 196, 29, { align: 'right' });
+    doc.text('REPOSIÇÃO DE ESTOQUE', 196, 29, { align: 'right' });
     doc.setTextColor(210, 210, 210);
     doc.text(`Emitida em ${reportDate}`, 196, 36, { align: 'right' });
 
@@ -705,7 +705,7 @@ async function printLowStockReport() {
     doc.roundedRect(14, 58, 182, 25, 2, 2, 'S');
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(12);
-    doc.text(`${lowStockItems.length} item(ns) precisam de reposicao`, 22, 72);
+    doc.text(`${lowStockItems.length} item(ns) precisam de reposição`, 22, 72);
     doc.setTextColor(115, 115, 115);
     doc.setFontSize(9);
     doc.text('Produtos com 5 unidades ou menos no estoque.', 22, 78);
