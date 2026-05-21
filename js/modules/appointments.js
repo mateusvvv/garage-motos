@@ -1,31 +1,7 @@
 import { auth, db } from '../../firebase-config.js';
-import { collection, addDoc, onSnapshot, deleteDoc, doc, query, limit, orderBy } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, addDoc, onSnapshot, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { updateScrollLock, startAlarm, updateMenuBadge } from './ui.js';
-
-let appointmentsSyncStarted = false;
-
-function getPublicCalendarEvents() {
-    return state.appointmentRequests
-        .filter(event => event.type === 'block')
-        .map(event => ({
-            id: `public-${event.id}`,
-            title: 'Indisponível',
-            start: event.start,
-            color: '#262626',
-            type: 'block'
-        }));
-}
-
-function refreshCalendarEvents(calendar, events) {
-    if (!calendar) return;
-    calendar.removeAllEvents();
-    events.forEach(event => calendar.addEvent(event));
-}
-
-function isDateBlocked(dateStr) {
-    return state.appointmentRequests.some(event => event.type === 'block' && event.start === dateStr);
-}
 
 function initCalendar() {
     const calendarEl = document.getElementById('calendar');
@@ -42,15 +18,20 @@ function initCalendar() {
         businessHours: {
             daysOfWeek: [1, 2, 3, 4, 5], // Segunda a Sexta
         },
-        events: getPublicCalendarEvents(),
+        events: [],
         eventContent: function(arg) {
-            return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem; white-space: normal; line-height: 1.1;">${arg.event.title}</div>` };
+            const type = arg.event.extendedProps.type;
+            if (type === 'request') { // Agendamento de serviço
+                return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem;" title="${arg.event.title}">🛠️</div>` };
+            }
+            return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem; white-space: normal; line-height: 1.1;">${arg.event.title}</div>` }; // Bloqueio
         },
         dateClick: function(info) {
             const day = new Date(info.date).getUTCDay();
             if (day === 0 || day === 6) return;
             
-            if (isDateBlocked(info.dateStr)) {
+            const isBlocked = state.appointmentRequests.some(e => e.type === 'block' && e.start === info.dateStr);
+            if (isBlocked) {
                 alert("Desculpe, esta data está indisponível.");
                 return;
             }
@@ -71,88 +52,14 @@ function initCalendar() {
     // Removido o onSnapshot daqui de dentro para a função global initAppointmentsSync
 }
 
-function initAdminCalendar() {
-    const calendarEl = document.getElementById('admin-calendar');
-    if (!calendarEl || state.adminCalendar) return;
-
-    state.adminCalendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'pt-br',
-        contentHeight: 'auto',
-        aspectRatio: 1.35,
-        headerToolbar: { left: 'title', center: '', right: 'today prev,next' },
-        buttonText: { today: 'Hoje' },
-        showNonCurrentDates: false, // Mostra apenas os dias do mês atual
-        businessHours: { daysOfWeek: [1, 2, 3, 4, 5] },
-        events: state.appointmentRequests,
-        eventContent: function(arg) {
-            const type = arg.event.extendedProps.type;
-            if (type === 'request') {
-                return { html: `<div class="fc-event-main text-center text-[10px] p-1 bg-red-600/20 rounded border border-red-600/40 truncate" title="${arg.event.title}">🛠️ ${arg.event.title.split(' - ')[0]}</div>` };
-            }
-            return { html: `<div class="fc-event-main text-center text-[9px] p-1 bg-neutral-800 rounded border border-neutral-700 truncate" style="white-space: normal; line-height: 1;">${arg.event.title}</div>` };
-        },
-        dateClick: function(info) {
-            quickAdminNote(info.dateStr);
-        }
-    });
-    state.adminCalendar.render();
-}
-
-function openAdminCalendar() {
-    const overlay = document.getElementById('admin-calendar-overlay');
-    if (!overlay) return;
-    overlay.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-    
-    if (!state.adminCalendar) {
-        initAdminCalendar();
-    }
-    
-    setTimeout(() => {
-        if (state.adminCalendar) {
-            state.adminCalendar.render();
-            state.adminCalendar.updateSize();
-        }
-    }, 150);
-}
-
-function closeAdminCalendar() {
-    const overlay = document.getElementById('admin-calendar-overlay');
-    if (overlay) overlay.classList.add('hidden');
-    updateScrollLock();
-}
-
-async function quickAdminNote(dateStr) {
-    const title = prompt(`O que deseja marcar para o dia ${dateStr.split('-').reverse().join('/')}?\n(Ex: 2 Revisões / Feriado / Peças chegando)`);
-    if (!title) return;
-    try {
-        await addDoc(collection(db, "appointments"), {
-            title: title.toUpperCase(),
-            start: dateStr,
-            color: '#262626',
-            type: 'block'
-        });
-    } catch (err) {
-        alert('Erro ao salvar no calendário.');
-    }
-}
+let appointmentsSyncStarted = false;
 
 function initAppointmentsSync() {
-    if (appointmentsSyncStarted) {
-        refreshCalendarEvents(state.calendar, getPublicCalendarEvents());
-        refreshCalendarEvents(state.adminCalendar, state.appointmentRequests);
-        refreshCalendarEvents(state.pickerCalendar, getPublicCalendarEvents());
-        renderAdminAppointments();
-        renderAdminNotes();
-        return;
-    }
+    if (appointmentsSyncStarted) return;
     appointmentsSyncStarted = true;
 
     // Sincronização em tempo real com o Firebase
-    // Adicionamos um limite para não ler a coleção inteira toda vez
-    const q = query(collection(db, "appointments"), orderBy('start', 'desc'), limit(150));
-    onSnapshot(q, (snapshot) => {
+    onSnapshot(collection(db, "appointments"), (snapshot) => {
         const docChanges = snapshot.docChanges();
         state.appointmentRequests = [];
         const calendarEvents = [];
@@ -162,26 +69,26 @@ function initAppointmentsSync() {
             calendarEvents.push(data);
         });
 
-        // Tocar som se houver um novo agendamento (após carregamento inicial e se o admin estiver logado)
+        // Tocar som se houver um novo agendamento de cliente (após carregamento inicial e se o admin estiver logado)
         if (!state.isInitialLoad && auth.currentUser) {
-            const isDashboardVisible = !document.getElementById('admin-dashboard-ui')?.classList.contains('hidden');
-            
             docChanges.forEach(change => {
-                // Dispara apenas para novos agendamentos de clientes se o painel estiver aberto
-                if (change.type === 'added' && change.doc.data().type === 'request' && change.doc.data().source === 'client' && isDashboardVisible) {
+                // Dispara apenas para novos agendamentos vindos do formulário do cliente (type: 'request')
+                if (change.type === 'added' && change.doc.data().type === 'request') {
                     startAlarm(); // Dispara o alarme visual e sonoro repetitivo
                 }
             });
         }
         if (state.isInitialLoad && snapshot.docs.length >= 0) state.isInitialLoad = false;
 
-        refreshCalendarEvents(state.calendar, getPublicCalendarEvents());
-        refreshCalendarEvents(state.adminCalendar, calendarEvents);
-        refreshCalendarEvents(state.pickerCalendar, getPublicCalendarEvents());
+        if (state.calendar) {
+            state.calendar.removeAllEvents();
+            calendarEvents.forEach(ev => state.calendar.addEvent(ev));
+        }
+        if (state.pickerCalendar) {
+            state.pickerCalendar.removeAllEvents();
+            calendarEvents.forEach(ev => state.pickerCalendar.addEvent(ev));
+        }
         renderAdminAppointments();
-        renderAdminNotes();
-    }, (error) => {
-        console.error('Erro ao sincronizar agendamentos:', error);
     });
 }
 
@@ -202,16 +109,21 @@ function openAppointmentPicker() {
                 start: new Date().toLocaleDateString('sv-SE') // Define hoje como data mínima (Formato YYYY-MM-DD)
             },
             businessHours: { daysOfWeek: [1, 2, 3, 4, 5] },
-            events: getPublicCalendarEvents(),
+            events: state.appointmentRequests,
             eventContent: function(arg) {
-                return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem; white-space: normal; line-height: 1.1;">${arg.event.title}</div>` };
+                const type = arg.event.extendedProps.type;
+                if (type === 'request') { // Agendamento de serviço
+                    return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem;" title="${arg.event.title}">🛠️</div>` };
+                }
+                return { html: `<div class="fc-event-main text-center" style="font-size: 0.7rem; white-space: normal; line-height: 1.1;">${arg.event.title}</div>` }; // Bloqueio
             },
             dateClick: function(info) {
                 const day = new Date(info.date).getUTCDay();
                 if (day === 0 || day === 6) return;
                 
                 // Verifica se o dia está bloqueado pelo Admin
-                if (isDateBlocked(info.dateStr)) {
+                const isBlocked = state.appointmentRequests.some(e => e.type === 'block' && e.start === info.dateStr);
+                if (isBlocked) {
                     alert("Desculpe, esta data está indisponível.");
                     return;
                 }
@@ -228,7 +140,8 @@ function openAppointmentPicker() {
             }
         });
     } else {
-        refreshCalendarEvents(state.pickerCalendar, getPublicCalendarEvents());
+        state.pickerCalendar.removeAllEvents();
+        state.appointmentRequests.forEach(ev => state.pickerCalendar.addEvent(ev));
     }
     setTimeout(() => state.pickerCalendar.render(), 100);
 }
@@ -281,8 +194,7 @@ async function scheduleService(e) {
             clientPhone: cleanPhone,
             bikeInfo: bike,
             createdAt: new Date().toISOString(),
-            type: 'request',
-            source: 'client'
+            type: 'request'
         });
         alert('Solicitação enviada com sucesso! O mecânico verificará sua vaga.');
         e.target.reset();
@@ -406,55 +318,5 @@ async function deleteAllAppointments() {
     }
 }
 
-async function createAppointmentFromOS(osData) {
-    if (!osData.appointmentDate) return;
-    
-    try {
-        await addDoc(collection(db, "appointments"), {
-            title: `🛠️ ${osData.appointmentDesc || 'Serviço'} - ${osData.client}`,
-            start: osData.appointmentDate,
-            color: '#e11d48',
-            clientName: osData.client,
-            bikeInfo: osData.bike,
-            createdAt: new Date().toISOString(),
-            type: 'request',
-            source: 'admin'
-        });
-    } catch (err) {
-        console.error("Erro ao vincular orçamento à agenda:", err);
-    }
-}
 
-function renderAdminNotes() {
-    const container = document.getElementById('admin-notes-list');
-    if (!container) return;
-
-    // Filtra apenas bloqueios/notas (type block) e ordena por data
-    const notes = state.appointmentRequests
-        .filter(e => e.type === 'block')
-        .sort((a, b) => a.start.localeCompare(b.start));
-
-    container.innerHTML = notes.map(n => `
-        <div class="bg-black/60 p-3 rounded border border-neutral-800 flex justify-between items-center group animate-fade-in">
-            <div class="min-w-0">
-                <p class="text-red-500 font-black text-[9px] uppercase italic mb-0.5">
-                    ${n.start.split('-').reverse().join('/')}
-                </p>
-                <p class="text-[11px] font-bold text-white uppercase truncate">${n.title.replace('🚫 ', '')}</p>
-            </div>
-            <button onclick="deleteAppointment('${n.id}')" class="text-neutral-600 hover:text-red-500 transition-colors p-1" title="Remover Nota">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-    `).join('') || '<p class="text-center text-neutral-600 text-[9px] py-6 uppercase font-bold italic tracking-widest opacity-50">Nenhuma nota cadastrada</p>';
-}
-
-// Exposição Global
-window.deleteAppointment = deleteAppointment;
-window.renderAdminNotes = renderAdminNotes;
-window.deleteAllAppointments = deleteAllAppointments;
-window.clearBlockedDates = clearBlockedDates;
-window.openAdminCalendar = openAdminCalendar;
-window.closeAdminCalendar = closeAdminCalendar;
-
-export { initCalendar, initAdminCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments, createAppointmentFromOS, renderAdminNotes, openAdminCalendar, closeAdminCalendar };
+export { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments };

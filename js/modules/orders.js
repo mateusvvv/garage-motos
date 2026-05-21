@@ -5,7 +5,6 @@ import { loadImageForPDF } from '../core/utils.js';
 import { decrementProductsStock, renderAdminStock } from './products.js';
 import { refreshFinanceDashboard } from './finance.js';
 import { showAdminView } from './ui.js';
-import { createAppointmentFromOS } from './appointments.js';
 
 let isFinalizingOS = false;
 let ordersSyncStarted = false;
@@ -379,8 +378,6 @@ function getOSFormData() {
     const client = document.getElementById('os-client').value;
     const bike = document.getElementById('os-bike').value;
     const observations = document.getElementById('os-observations').value;
-    const appointmentDate = document.getElementById('os-appointment-date').value;
-    const appointmentDesc = document.getElementById('os-appointment-desc').value;
     const labor = 0;
     
     const serviceRows = document.querySelectorAll('.os-service-row');
@@ -429,9 +426,7 @@ function getOSFormData() {
         partsTotal,
         total: servicesTotal + partsTotal,
         discounts: [...state.currentOSDiscounts],
-        discountTotal: state.currentOSDiscounts.reduce((sum, d) => sum + Number(d.amount || 0), 0),
-        appointmentDate,
-        appointmentDesc
+        discountTotal: state.currentOSDiscounts.reduce((sum, d) => sum + Number(d.amount || 0), 0)
     };
 }
 
@@ -454,18 +449,13 @@ async function saveOSDraft(e) {
 
     try {
         await saveOpenOrder(data);
-        
-        if (data.appointmentDate) {
-            await createAppointmentFromOS(data);
-        }
-
         saveAndRefresh();
         resetOSForm();
-        alert("Orçamento salvo com sucesso!");
+        alert("Rascunho salvo com sucesso!");
     } catch (error) {
         console.error('Erro ao salvar O.S em aberto no Firestore:', error);
         saveAndRefresh();
-        alert("Orçamento salvo neste aparelho, mas não foi possível sincronizar com a nuvem.");
+        alert("Rascunho salvo neste aparelho, mas não foi possível sincronizar com a nuvem.");
     }
 }
 
@@ -535,18 +525,15 @@ function getNextOSNumber() {
 }
 
 function formatOSNumber(os, fallbackIndex = 0, digits = 3) {
-    if (!os.osNumber) return "ORC";
     const orderIndex = state.serviceOrders.findIndex(order => order.id === os.id);
     const number = Number(os.osNumber) || (orderIndex >= 0 ? orderIndex + 1 : fallbackIndex + 1);
     return String(number).padStart(digits, '0');
 }
 
 async function downloadOSPDF(osOrId) {
-    // Busca nos finalizados ou nos orçamentos abertos
-    let os = (typeof osOrId === 'number') 
-        ? (state.serviceOrders.find(o => o.id === osOrId) || state.openOrders.find(o => o.id === osOrId)) 
-        : osOrId;
-        
+    // Busca a O.S se for passado apenas o ID (clique no histórico) 
+    // ou usa o objeto direto (geração de nova O.S)
+    let os = (typeof osOrId === 'number') ? state.serviceOrders.find(o => o.id === osOrId) : osOrId;
     if (!os) return;
 
     const { jsPDF } = window.jspdf;
@@ -555,7 +542,6 @@ async function downloadOSPDF(osOrId) {
     const parts = os.parts || [];
     const services = os.services || [];
     const discounts = os.discounts || [];
-    const isEstimate = !os.osNumber;
     const money = value => `R$ ${Number(value || 0).toFixed(2)}`;
     const pageBottom = 266;
     const listFontSize = 8;
@@ -582,7 +568,7 @@ async function downloadOSPDF(osOrId) {
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(8);
         doc.setFont(undefined, 'bold');
-        doc.text('DESCRIÇÃO', 20, headerY + 7);
+        doc.text('DESCRICAO', 20, headerY + 7);
         doc.text('VALOR', 186, headerY + 7, { align: 'right' });
     };
     
@@ -605,10 +591,10 @@ async function downloadOSPDF(osOrId) {
     doc.setTextColor(255, 255, 255);
     doc.setFont(undefined, 'bold');
     doc.setFontSize(17);
-    doc.text(isEstimate ? 'ORÇAMENTO' : 'ORDEM DE SERVIÇO', 196, 19, { align: 'right' });
+    doc.text('ORDEM DE SERVICO', 196, 19, { align: 'right' });
     doc.setFontSize(10);
     doc.setTextColor(225, 29, 72);
-    doc.text(isEstimate ? 'PRÉVIA DE SERVIÇO' : `O.S #${formatOSNumber(os)}`, 196, 29, { align: 'right' });
+    doc.text(`O.S #${formatOSNumber(os)}`, 196, 29, { align: 'right' });
     doc.setTextColor(210, 210, 210);
     doc.text(`Emitida em ${os.date}`, 196, 36, { align: 'right' });
 
@@ -622,7 +608,7 @@ async function downloadOSPDF(osOrId) {
     doc.setFont(undefined, 'bold');
     doc.text('CLIENTE', 22, 68);
     doc.text('MOTO / PLACA', 112, 68);
-    doc.text('OBSERVAÇÕES / DEFEITO RELATADO', 22, 84);
+    doc.text('OBSERVACOES / DEFEITO RELATADO', 22, 84);
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(11);
@@ -648,7 +634,7 @@ async function downloadOSPDF(osOrId) {
         doc.setTextColor(0, 0, 0);
         doc.setFont(undefined, 'bold');
         doc.setFontSize(11);
-        doc.text(`ORDEM DE SERVIÇO #${formatOSNumber(os)} - CONTINUAÇÃO`, 14, 18);
+        doc.text(`ORDEM DE SERVICO #${formatOSNumber(os)} - CONTINUACAO`, 14, 18);
         drawDescriptionHeader(26);
         y = 48;
         doc.setTextColor(0, 0, 0);
@@ -681,10 +667,10 @@ async function downloadOSPDF(osOrId) {
 
     if (services.length > 0) {
         services.forEach(service => {
-            const paymentLabels = { pix: 'PIX', avista: 'ESPÉCIE', cartao: 'CARTÃO' };
+            const paymentLabels = { pix: 'PIX', avista: 'ESPECIE', cartao: 'CARTAO' };
             const mechanicLabels = { leo: 'LEO', wandson: 'WANDSON' };
             const detail = `${mechanicLabels[service.mechanic] || String(service.mechanic || '').toUpperCase()} | ${paymentLabels[service.paymentMethod] || String(service.paymentMethod || '').toUpperCase()}`;
-            const name = `${String(service.name || 'SERVIÇO').toUpperCase()} (${detail})`;
+            const name = `${String(service.name || 'Servico').toUpperCase()} (${detail})`;
             drawItemRow(name, money(service.price));
         });
     }
@@ -695,11 +681,11 @@ async function downloadOSPDF(osOrId) {
             const unitPrice = Number(part.unitPrice ?? (quantity > 1 ? Number(part.price || 0) / quantity : part.price || 0));
             const quantityLabel = quantity > 1 ? `${quantity}X ` : '';
             const unitLabel = quantity > 1 ? ` (${quantity} x ${money(unitPrice)})` : '';
-            const name = `${quantityLabel}${String(part.name || 'PEÇA').toUpperCase()}${unitLabel}`;
+            const name = `${quantityLabel}${String(part.name || 'Peca').toUpperCase()}${unitLabel}`;
             drawItemRow(name, money(part.price));
         });
     } else {
-        drawItemRow('Nenhuma peça adicionada.', '', [115, 115, 115]);
+        drawItemRow('Nenhuma peca adicionada.', '', [115, 115, 115]);
     }
 
     if (discounts.length > 0) {
@@ -721,9 +707,9 @@ async function downloadOSPDF(osOrId) {
     doc.setTextColor(90, 90, 90);
     doc.setFontSize(9);
     doc.setFont(undefined, 'bold');
-    doc.text('PEÇAS', 126, totalsY + 10);
+    doc.text('PECAS', 126, totalsY + 10);
     doc.text(money(os.partsTotal), 188, totalsY + 10, { align: 'right' });
-    doc.text('SERVIÇOS', 126, totalsY + 19);
+    doc.text('SERVICOS', 126, totalsY + 19);
     doc.text(money(os.servicesTotal), 188, totalsY + 19, { align: 'right' });
     if (discounts.length > 0) {
         doc.text('DESCONTO', 126, totalsY + 28);
@@ -828,7 +814,7 @@ function renderOpenOrders() {
         <div class="bg-black border border-neutral-800 p-4 rounded-xl flex flex-col gap-3 animate-fade-in">
             <div class="flex justify-between items-start">
                 <div class="flex-1 truncate mr-2">
-                    <p class="text-red-600 font-black text-[9px] uppercase italic tracking-widest mb-1">Orçamento em aberto</p>
+                    <p class="text-red-600 font-black text-[9px] uppercase italic tracking-widest mb-1">Rascunho em aberto</p>
                     <h5 class="font-bold text-sm uppercase truncate text-white">${escapeHtml(os.client || 'Sem Nome')}</h5>
                     <p class="text-[10px] text-neutral-500 uppercase italic truncate">${escapeHtml(os.bike || 'Sem Moto')}</p>
                 </div>
@@ -836,11 +822,10 @@ function renderOpenOrders() {
             </div>
             <div class="flex gap-2 border-t border-neutral-900 pt-3">
                 <button onclick="loadOSDraft(${os.id})" class="flex-1 bg-neutral-800 py-2 rounded text-[9px] font-black uppercase tracking-widest hover:bg-white hover:text-black transition">Carregar</button>
-                <button onclick="downloadOSPDF(${os.id})" class="flex-1 bg-neutral-900 py-2 rounded text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition">PDF</button>
                 <button onclick="deleteOpenOS(${os.id})" class="bg-neutral-900 p-2 rounded text-neutral-600 hover:text-red-600 transition">✕</button>
             </div>
         </div>
-    `).join('') || '<p class="col-span-full text-center text-neutral-600 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">Nenhum orçamento ativo</p>';
+    `).join('') || '<p class="col-span-full text-center text-neutral-600 text-[10px] py-8 uppercase font-bold tracking-[0.2em]">Nenhum rascunho ativo</p>';
 }
 
 function loadOSDraft(id) {
@@ -852,8 +837,6 @@ function loadOSDraft(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
-    document.getElementById('os-appointment-date').value = os.appointmentDate || '';
-    document.getElementById('os-appointment-desc').value = os.appointmentDesc || '';
     const servicesContainer = document.getElementById('os-services-container');
     servicesContainer.innerHTML = '';
     (os.services || []).forEach(service => addServiceRow(service.name, service.price, service.mechanic, service.paymentMethod));
@@ -876,8 +859,6 @@ function editOS(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
-    document.getElementById('os-appointment-date').value = os.appointmentDate || '';
-    document.getElementById('os-appointment-desc').value = os.appointmentDesc || '';
     const servicesContainer = document.getElementById('os-services-container');
     servicesContainer.innerHTML = '';
     (os.services || []).forEach(service => addServiceRow(service.name, service.price, service.mechanic, service.paymentMethod));
@@ -905,14 +886,12 @@ function resetOSForm() {
     document.getElementById('os-parts-container').innerHTML = '';
     document.getElementById('os-services-container').innerHTML = '';
     document.getElementById('os-observations').value = '';
-    document.getElementById('os-appointment-date').value = '';
-    document.getElementById('os-appointment-desc').value = '';
     state.currentOSDiscounts = [];
     addPartRow();
     document.getElementById('os-discount-value').value = '';
     document.getElementById('os-discount-type').value = 'fixed';
     updateDiscountTargets();
-    document.getElementById('os-submit-btn').textContent = 'Salvar Orçamento';
+    document.getElementById('os-submit-btn').textContent = 'Salvar Rascunho';
     document.getElementById('os-cancel-edit').classList.add('hidden');
 }
 
@@ -961,7 +940,7 @@ async function clearOSHistory() {
 }
 
 async function deleteOpenOS(id) {
-    if (!confirm('Deseja descartar este orçamento?')) return;
+    if (!confirm('Deseja descartar este rascunho?')) return;
     try {
         await deleteOpenOrderFromCloud(id);
         state.openOrders = state.openOrders.filter(o => o.id !== id);

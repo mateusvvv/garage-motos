@@ -1,5 +1,5 @@
 import { initProductsSync, addProduct, editProduct, deleteProduct, deleteAllProducts, resetProductForm, renderShop, renderAdminStock, reserveProduct, reloadProducts, printLowStockReport } from './modules/products.js';
-import { initCalendar, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments } from './modules/appointments.js';
+import { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments } from './modules/appointments.js';
 import { addPartRow, addServiceRow, updateDiscountTargets, applyOSDiscount, saveOSDraft, finalizeOS, loadOSDraft, deleteOpenOS, clearOSHistory, editOS, deleteOS, downloadOSPDF, resetOSForm, renderHistory, renderOpenOrders, renderClosedOrders } from './modules/orders.js';
 import { addExpense, deleteExpense, clearExpenseHistory, printProfitReportPDF, renderExpenseList, renderChart, refreshFinanceDashboard } from './modules/finance.js';
 import { loginAdmin, logoutAdmin, initAuthObserver } from './modules/auth.js';
@@ -56,6 +56,7 @@ Object.assign(window, {
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('calendar')) initCalendar();
     initProductsSync();
+    initAppointmentsSync();
 
     const addSafeListener = (id, event, fn) => {
         const el = document.getElementById(id);
@@ -140,9 +141,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     addSafeListener('os-history-toggle', 'click', toggleOSHistory);
     addSafeListener('login-form', 'submit', loginAdmin);
-    addSafeListener('btn-tab-gestao', 'click', () => showAdminView('gestao'));
-    addSafeListener('btn-tab-estoque', 'click', () => showAdminView('estoque'));
-    addSafeListener('btn-tab-financeiro', 'click', () => showAdminView('financeiro'));
     addSafeListener('stock-search', 'input', (e) => renderAdminStock(e.target.value));
     addSafeListener('shop-search', 'input', renderShop);
     addSafeListener('os-cancel-edit', 'click', resetOSForm);

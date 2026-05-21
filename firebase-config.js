@@ -3,7 +3,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebas
 import { getAnalytics, isSupported } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import { initializeFirestore } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 
 // Your web app's Firebase configuration
 export const firebaseConfig = {
@@ -30,4 +29,3 @@ export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   experimentalAutoDetectLongPolling: true
 });
-export const storage = getStorage(app);

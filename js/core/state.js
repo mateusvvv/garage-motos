@@ -84,7 +84,6 @@ export const state = {
     currentOSDiscounts: [],
     currentUserRole: 'collaborator',
     isInitialLoad: true,
-    lastProductDoc: null,
     calendar: null,
     revenueChart: null
 };
