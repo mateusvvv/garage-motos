@@ -341,10 +341,20 @@
                         <h4 class="text-xl font-bold flex items-center gap-2 uppercase tracking-tight">
                             <span class="w-2 h-6 bg-red-600 block"></span> Próximos Agendamentos <span id="admin-appointments-total" class="text-neutral-500 text-sm italic ml-2"></span>
                         </h4>
-                        <button id="btn-delete-all-appointments" onclick="deleteAllAppointments()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
+                        <div class="flex gap-2">
+                            <button onclick="openAdminCalendar()" class="bg-neutral-800 border border-neutral-700 text-white hover:bg-white hover:text-black px-4 py-2 rounded text-[10px] font-bold uppercase transition italic">Ver Agenda Visual</button>
+                            <button id="btn-delete-all-appointments" onclick="deleteAllAppointments()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
+                        </div>
                     </div>
-                    <div id="admin-appointments-list" class="space-y-4 max-h-[650px] overflow-y-auto pr-2">
-                        <!-- Lista de solicitações de clientes -->
+                    <div class="grid grid-cols-1 xl:grid-cols-[1fr_350px] gap-8">
+                        <div id="admin-appointments-list" class="space-y-4 max-h-[650px] overflow-y-auto pr-2">
+                            <!-- Lista de solicitações de clientes -->
+                        </div>
+                        <div class="bg-black/40 p-4 rounded-xl border border-neutral-800 shadow-inner h-fit self-start">
+                            <h5 class="text-[10px] font-black uppercase tracking-widest text-neutral-500 mb-4 italic flex items-center gap-2"><span class="w-1.5 h-1.5 bg-neutral-700 rounded-full"></span> Notas e Bloqueios</h5>
+                            <div id="admin-notes-list" class="space-y-2 max-h-[500px] overflow-y-auto pr-1">
+                                <!-- Notas inseridas pelo admin aparecerão aqui -->
+                            </div>
                     </div>
                 </div>
                 </div>
@@ -548,6 +558,18 @@
                 <h4 class="text-2xl md:text-3xl font-black uppercase italic mb-8 text-center text-red-600 tracking-tighter">Selecione o Dia</h4>
                 <div id="picker-calendar" class="picker-calendar-custom"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- Admin Calendar Overlay (Agenda Visual) -->
+    <div id="admin-calendar-overlay" class="fixed inset-0 z-[1350] bg-neutral-950 hidden overflow-y-auto animate-fade-in">
+        <div class="relative w-full max-w-4xl mx-auto min-h-screen flex flex-col pt-20 pb-10 px-6 md:pt-24 md:px-12">
+            <button onclick="closeAdminCalendar()" class="absolute top-6 right-6 text-neutral-500 hover:text-white text-[10px] font-black uppercase tracking-widest z-10">✕ Fechar</button>
+            <h4 class="text-2xl md:text-3xl font-black uppercase italic mb-8 text-center text-red-600 tracking-tighter">Agenda Visual</h4>
+            <div class="bg-black p-4 rounded-xl border border-neutral-800 shadow-2xl">
+                <div id="admin-calendar" class="picker-calendar-custom"></div>
+            </div>
+            <p class="text-center text-neutral-500 text-[10px] uppercase font-bold mt-6 tracking-widest">Clique em uma data para adicionar lembretes ou bloqueios</p>
         </div>
     </div>
 

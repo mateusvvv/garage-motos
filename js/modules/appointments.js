@@ -52,6 +52,73 @@ function initCalendar() {
     // Removido o onSnapshot daqui de dentro para a função global initAppointmentsSync
 }
 
+function initAdminCalendar() {
+    const calendarEl = document.getElementById('admin-calendar');
+    if (!calendarEl || state.adminCalendar) return;
+
+    state.adminCalendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'pt-br',
+        contentHeight: 'auto',
+        aspectRatio: 1.35,
+        headerToolbar: { left: 'title', center: '', right: 'today prev,next' },
+        buttonText: { today: 'Hoje' },
+        showNonCurrentDates: false, // Mostra apenas os dias do mês atual
+        businessHours: { daysOfWeek: [1, 2, 3, 4, 5] },
+        events: state.appointmentRequests,
+        eventContent: function(arg) {
+            const type = arg.event.extendedProps.type;
+            if (type === 'request') {
+                return { html: `<div class="fc-event-main text-center text-[10px] p-1 bg-red-600/20 rounded border border-red-600/40 truncate" title="${arg.event.title}">🛠️ ${arg.event.title.split(' - ')[0]}</div>` };
+            }
+            return { html: `<div class="fc-event-main text-center text-[9px] p-1 bg-neutral-800 rounded border border-neutral-700 truncate" style="white-space: normal; line-height: 1;">${arg.event.title}</div>` };
+        },
+        dateClick: function(info) {
+            quickAdminNote(info.dateStr);
+        }
+    });
+    state.adminCalendar.render();
+}
+
+function openAdminCalendar() {
+    const overlay = document.getElementById('admin-calendar-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    if (!state.adminCalendar) {
+        initAdminCalendar();
+    }
+    
+    setTimeout(() => {
+        if (state.adminCalendar) {
+            state.adminCalendar.render();
+            state.adminCalendar.updateSize();
+        }
+    }, 150);
+}
+
+function closeAdminCalendar() {
+    const overlay = document.getElementById('admin-calendar-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    updateScrollLock();
+}
+
+async function quickAdminNote(dateStr) {
+    const title = prompt(`O que deseja marcar para o dia ${dateStr.split('-').reverse().join('/')}?\n(Ex: 2 Revisões / Feriado / Peças chegando)`);
+    if (!title) return;
+    try {
+        await addDoc(collection(db, "appointments"), {
+            title: title.toUpperCase(),
+            start: dateStr,
+            color: '#262626',
+            type: 'block'
+        });
+    } catch (err) {
+        alert('Erro ao salvar no calendário.');
+    }
+}
+
 function initAppointmentsSync() {
     // Sincronização em tempo real com o Firebase
     onSnapshot(collection(db, "appointments"), (snapshot) => {
@@ -81,11 +148,16 @@ function initAppointmentsSync() {
             state.calendar.removeAllEvents();
             calendarEvents.forEach(ev => state.calendar.addEvent(ev));
         }
+        if (state.adminCalendar) {
+            state.adminCalendar.removeAllEvents();
+            calendarEvents.forEach(ev => state.adminCalendar.addEvent(ev));
+        }
         if (state.pickerCalendar) {
             state.pickerCalendar.removeAllEvents();
             calendarEvents.forEach(ev => state.pickerCalendar.addEvent(ev));
         }
         renderAdminAppointments();
+        renderAdminNotes();
     });
 }
 
@@ -335,4 +407,36 @@ async function createAppointmentFromOS(osData) {
     }
 }
 
-export { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments, createAppointmentFromOS };
+function renderAdminNotes() {
+    const container = document.getElementById('admin-notes-list');
+    if (!container) return;
+
+    // Filtra apenas bloqueios/notas (type block) e ordena por data
+    const notes = state.appointmentRequests
+        .filter(e => e.type === 'block')
+        .sort((a, b) => a.start.localeCompare(b.start));
+
+    container.innerHTML = notes.map(n => `
+        <div class="bg-black/60 p-3 rounded border border-neutral-800 flex justify-between items-center group animate-fade-in">
+            <div class="min-w-0">
+                <p class="text-red-500 font-black text-[9px] uppercase italic mb-0.5">
+                    ${n.start.split('-').reverse().join('/')}
+                </p>
+                <p class="text-[11px] font-bold text-white uppercase truncate">${n.title.replace('🚫 ', '')}</p>
+            </div>
+            <button onclick="deleteAppointment('${n.id}')" class="text-neutral-600 hover:text-red-500 transition-colors p-1" title="Remover Nota">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="3"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+    `).join('') || '<p class="text-center text-neutral-600 text-[9px] py-6 uppercase font-bold italic tracking-widest opacity-50">Nenhuma nota cadastrada</p>';
+}
+
+// Exposição Global
+window.deleteAppointment = deleteAppointment;
+window.renderAdminNotes = renderAdminNotes;
+window.deleteAllAppointments = deleteAllAppointments;
+window.clearBlockedDates = clearBlockedDates;
+window.openAdminCalendar = openAdminCalendar;
+window.closeAdminCalendar = closeAdminCalendar;
+
+export { initCalendar, initAdminCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments, createAppointmentFromOS, renderAdminNotes, openAdminCalendar, closeAdminCalendar };

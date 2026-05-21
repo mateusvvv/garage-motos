@@ -1,3 +1,24 @@
+/* Estilo discreto para o calendário administrativo */
+#admin-calendar {
+    max-width: 100%;
+    font-family: 'Inter', sans-serif;
+}
+
+#admin-calendar .fc-toolbar-title {
+    font-size: 0.85rem !important;
+    font-weight: 900 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a3a3a3;
+}
+
+#admin-calendar .fc-button {
+    padding: 4px 8px !important;
+    font-size: 9px !important;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
 /* Ajustes para Calendário Mobile */
 @media (max-width: 768px) {
     .fc .fc-toolbar {
@@ -53,4 +74,3 @@
         font-size: 0.85rem;
     }
 }
-

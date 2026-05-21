@@ -4,7 +4,7 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-
 import { state } from '../core/state.js';
 import { showAdminView, updateMenuBadge } from './ui.js';
 import { renderAdminStock } from './products.js';
-import { renderAdminAppointments, initAppointmentsSync } from './appointments.js';
+import { renderAdminAppointments, initAppointmentsSync, initAdminCalendar } from './appointments.js';
 import { initOrdersSync } from './orders.js';
 import { initFinanceSync } from './finance.js';
 
@@ -86,6 +86,7 @@ export function initAuthObserver() {
             initFinanceSync();
             dashboard.classList.remove('hidden');
             loginUI.classList.add('hidden');
+            initAdminCalendar();
             renderAdminStock();
             renderAdminAppointments();
             showAdminView('gestao');
