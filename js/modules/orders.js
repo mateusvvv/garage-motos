@@ -5,6 +5,7 @@ import { loadImageForPDF } from '../core/utils.js';
 import { decrementProductsStock, renderAdminStock } from './products.js';
 import { refreshFinanceDashboard } from './finance.js';
 import { showAdminView } from './ui.js';
+import { createAppointmentFromOS } from './appointments.js';
 
 let isFinalizingOS = false;
 let ordersSyncStarted = false;
@@ -378,6 +379,8 @@ function getOSFormData() {
     const client = document.getElementById('os-client').value;
     const bike = document.getElementById('os-bike').value;
     const observations = document.getElementById('os-observations').value;
+    const appointmentDate = document.getElementById('os-appointment-date').value;
+    const appointmentDesc = document.getElementById('os-appointment-desc').value;
     const labor = 0;
     
     const serviceRows = document.querySelectorAll('.os-service-row');
@@ -426,7 +429,9 @@ function getOSFormData() {
         partsTotal,
         total: servicesTotal + partsTotal,
         discounts: [...state.currentOSDiscounts],
-        discountTotal: state.currentOSDiscounts.reduce((sum, d) => sum + Number(d.amount || 0), 0)
+        discountTotal: state.currentOSDiscounts.reduce((sum, d) => sum + Number(d.amount || 0), 0),
+        appointmentDate,
+        appointmentDesc
     };
 }
 
@@ -449,6 +454,11 @@ async function saveOSDraft(e) {
 
     try {
         await saveOpenOrder(data);
+        
+        if (data.appointmentDate) {
+            await createAppointmentFromOS(data);
+        }
+
         saveAndRefresh();
         resetOSForm();
         alert("Orçamento salvo com sucesso!");
@@ -842,6 +852,8 @@ function loadOSDraft(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
+    document.getElementById('os-appointment-date').value = os.appointmentDate || '';
+    document.getElementById('os-appointment-desc').value = os.appointmentDesc || '';
     const servicesContainer = document.getElementById('os-services-container');
     servicesContainer.innerHTML = '';
     (os.services || []).forEach(service => addServiceRow(service.name, service.price, service.mechanic, service.paymentMethod));
@@ -864,6 +876,8 @@ function editOS(id) {
     document.getElementById('os-client').value = os.client;
     document.getElementById('os-bike').value = os.bike;
     document.getElementById('os-observations').value = os.observations || '';
+    document.getElementById('os-appointment-date').value = os.appointmentDate || '';
+    document.getElementById('os-appointment-desc').value = os.appointmentDesc || '';
     const servicesContainer = document.getElementById('os-services-container');
     servicesContainer.innerHTML = '';
     (os.services || []).forEach(service => addServiceRow(service.name, service.price, service.mechanic, service.paymentMethod));
@@ -891,6 +905,8 @@ function resetOSForm() {
     document.getElementById('os-parts-container').innerHTML = '';
     document.getElementById('os-services-container').innerHTML = '';
     document.getElementById('os-observations').value = '';
+    document.getElementById('os-appointment-date').value = '';
+    document.getElementById('os-appointment-desc').value = '';
     state.currentOSDiscounts = [];
     addPartRow();
     document.getElementById('os-discount-value').value = '';

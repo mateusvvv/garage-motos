@@ -291,6 +291,17 @@
                         <input type="text" id="os-bike" placeholder="Moto" class="w-full bg-black p-3 rounded border border-neutral-700">
                         <textarea id="os-observations" placeholder="Observações / Defeito Relatado" class="w-full bg-black p-3 rounded border border-neutral-700 h-20 resize-none text-sm outline-none focus:border-red-600 transition"></textarea>
                         
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-black/30 p-4 rounded-lg border border-neutral-800">
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black uppercase text-neutral-500 ml-1 italic">Data para Agenda (Opcional)</label>
+                                <input type="date" id="os-appointment-date" class="w-full bg-black p-3 rounded border border-neutral-700 text-sm outline-none focus:border-red-600 transition">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[10px] font-black uppercase text-neutral-500 ml-1 italic">Descrição do Serviço p/ Agenda</label>
+                                <input type="text" id="os-appointment-desc" placeholder="Ex: Revisão Geral" class="w-full bg-black p-3 rounded border border-neutral-700 text-sm outline-none focus:border-red-600 transition">
+                            </div>
+                        </div>
+
                         <div id="os-parts-container" class="space-y-2">
                             <!-- Linhas de peças dinâmicas -->
                         </div>

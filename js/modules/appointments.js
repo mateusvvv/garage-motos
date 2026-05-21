@@ -70,7 +70,7 @@ function initAppointmentsSync() {
             
             docChanges.forEach(change => {
                 // Dispara apenas para novos agendamentos de clientes se o painel estiver aberto
-                if (change.type === 'added' && change.doc.data().type === 'request' && isDashboardVisible) {
+                if (change.type === 'added' && change.doc.data().type === 'request' && change.doc.data().source === 'client' && isDashboardVisible) {
                     startAlarm(); // Dispara o alarme visual e sonoro repetitivo
                 }
             });
@@ -191,7 +191,8 @@ async function scheduleService(e) {
             clientPhone: cleanPhone,
             bikeInfo: bike,
             createdAt: new Date().toISOString(),
-            type: 'request'
+            type: 'request',
+            source: 'client'
         });
         alert('Solicitação enviada com sucesso! O mecânico verificará sua vaga.');
         e.target.reset();
@@ -315,5 +316,23 @@ async function deleteAllAppointments() {
     }
 }
 
+async function createAppointmentFromOS(osData) {
+    if (!osData.appointmentDate) return;
+    
+    try {
+        await addDoc(collection(db, "appointments"), {
+            title: `🛠️ ${osData.appointmentDesc || 'Serviço'} - ${osData.client}`,
+            start: osData.appointmentDate,
+            color: '#e11d48',
+            clientName: osData.client,
+            bikeInfo: osData.bike,
+            createdAt: new Date().toISOString(),
+            type: 'request',
+            source: 'admin'
+        });
+    } catch (err) {
+        console.error("Erro ao vincular orçamento à agenda:", err);
+    }
+}
 
-export { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments };
+export { initCalendar, initAppointmentsSync, openAppointmentPicker, closeAppointmentPicker, scheduleService, blockDate, deleteAppointment, clearBlockedDates, renderAdminAppointments, deleteAllAppointments, createAppointmentFromOS };
