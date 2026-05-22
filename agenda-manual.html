@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda Manual | Garage Motos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/pt-br.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #000; color: #fff; }
+        .fc { background: #171717; color: #fff; border: none; border-radius: 1rem; padding: 1rem; }
+        .fc-theme-standard td, .fc-theme-standard th { border: 1px solid #262626 !important; }
+        .fc-daygrid-day:hover { background-color: #262626 !important; cursor: pointer; }
+        .fc-toolbar-title { text-transform: uppercase; font-weight: 900; font-size: 1rem !important; }
+        .fc-button-primary { background-color: #ef4444 !important; border: none !important; text-transform: uppercase; font-size: 0.7rem !important; font-weight: bold; }
+        .fc-col-header-cell { background-color: #f4f4f4 !important; }
+        .fc-col-header-cell-cushion { color: #000 !important; font-weight: 900; text-transform: uppercase; font-size: 0.7rem; }
+
+        /* Scrollbar discreta para a lista lateral */
+        #notes-list::-webkit-scrollbar { width: 4px; }
+        #notes-list::-webkit-scrollbar-track { background: transparent; }
+        #notes-list::-webkit-scrollbar-thumb { background: #262626; border-radius: 10px; }
+        #notes-list::-webkit-scrollbar-thumb:hover { background: #ef4444; }
+
+        /* Scrollbar para textos longos dentro da anotação */
+        .note-content-scroll::-webkit-scrollbar { width: 2px; }
+        .note-content-scroll::-webkit-scrollbar-thumb { background: #404040; }
+    </style>
+</head>
+<body class="p-4 md:p-8 min-h-screen">
+    <div class="max-w-full mx-auto lg:px-4">
+        <header class="flex justify-between items-center mb-12 border-b border-neutral-800 pb-6">
+            <div>
+                <h1 class="text-2xl font-black italic text-red-600 uppercase tracking-tighter">Agenda <span class="text-white">Manual</span></h1>
+                <p class="text-[10px] text-neutral-500 uppercase font-bold tracking-widest mt-1">Gestão de serviços por data</p>
+            </div>
+            <a href="index.html" class="bg-neutral-900 border border-neutral-800 px-5 py-2 rounded-full text-[10px] font-black uppercase hover:bg-white hover:text-black transition italic tracking-widest">Voltar ao Painel</a>
+        </header>
+
+        <div class="flex flex-col items-center mb-12">
+            <button id="open-calendar-btn" class="bg-red-600 hover:bg-red-700 px-10 py-5 rounded-2xl font-black uppercase italic tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-2xl shadow-red-600/30">
+                📅 Abrir Calendário
+            </button>
+            <div id="date-badge" class="mt-6 hidden bg-neutral-900 border border-red-600/40 px-4 py-2 rounded-full">
+                <p id="selected-date-label" class="text-red-500 font-black uppercase text-[10px] tracking-widest italic"></p>
+            </div>
+        </div>
+
+        <!-- Overlay do Calendário -->
+        <div id="calendar-modal" class="fixed inset-0 z-[100] bg-black/98 hidden flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-neutral-900 p-6 rounded-3xl border border-neutral-800 w-full max-w-xl shadow-2xl">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-sm font-black uppercase italic tracking-widest text-red-600">Selecione o <span class="text-white">Dia</span></h2>
+                    <button id="close-calendar-btn" class="text-neutral-500 hover:text-white transition font-black text-[10px]">FECHAR ✕</button>
+                </div>
+                <div id="calendar-el"></div>
+            </div>
+        </div>
+
+        <div id="main-content" class="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-8 opacity-0 transition-opacity duration-500 pointer-events-none">
+            <!-- Área de Entrada -->
+            <div class="space-y-6">
+                <div class="bg-neutral-900 p-6 rounded-2xl border border-neutral-800">
+                    <h3 class="text-xs font-black uppercase italic mb-6 tracking-widest flex items-center gap-2">
+                        <span class="w-1.5 h-4 bg-red-600 block"></span> Adicionar Serviço
+                    </h3>
+                    <textarea id="note-input" placeholder="Ex: Revisão Honda CB500 - Troca de pastilhas..." class="w-full bg-black border border-neutral-800 p-4 rounded-xl focus:border-red-600 outline-none transition text-sm h-32 resize-none mb-4 text-white"></textarea>
+                    <button id="save-note-btn" class="w-full bg-red-600 py-4 rounded-xl font-black uppercase italic hover:bg-red-700 transition shadow-lg shadow-red-600/20 active:scale-95">Salvar</button>
+                </div>
+            </div>
+
+            <!-- Listagem -->
+            <div class="bg-neutral-900 p-6 rounded-2xl border border-neutral-800 min-h-[400px]">
+                <h3 class="text-xs font-black uppercase italic mb-6 tracking-widest flex items-center gap-2">
+                    <span class="w-1.5 h-4 bg-red-600 block"></span> Lista de Anotações
+                </h3>
+                <div id="notes-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                    <p class="text-neutral-600 text-[10px] uppercase font-black text-center py-20 tracking-widest">Nenhuma data selecionada</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from './firebase-config.js';
+        import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js';
+        import { doc, getDoc, setDoc, updateDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+
+        let selectedDate = '';
+        let calendar;
+        let editingNoteId = null;
+        let currentNotes = [];
+
+        const calendarModal = document.getElementById('calendar-modal');
+        const openBtn = document.getElementById('open-calendar-btn');
+        const closeBtn = document.getElementById('close-calendar-btn');
+        const notesList = document.getElementById('notes-list');
+        const dateBadge = document.getElementById('date-badge');
+        const dateLabel = document.getElementById('selected-date-label');
+        const noteInput = document.getElementById('note-input');
+        const saveBtn = document.getElementById('save-note-btn');
+        const mainContent = document.getElementById('main-content');
+
+        onAuthStateChanged(auth, (user) => {
+            if (!user) window.location.href = "index.html";
+        });
+
+        openBtn.addEventListener('click', () => {
+            calendarModal.classList.remove('hidden');
+            if (!calendar) {
+                calendar = new FullCalendar.Calendar(document.getElementById('calendar-el'), {
+                    initialView: 'dayGridMonth',
+                    locale: 'pt-br',
+                    height: 'auto',
+                    dateClick: (info) => {
+                        selectedDate = info.dateStr;
+                        calendarModal.classList.add('hidden');
+                        loadNotesForDay(selectedDate);
+                    }
+                });
+                calendar.render();
+            }
+        });
+
+        closeBtn.addEventListener('click', () => calendarModal.classList.add('hidden'));
+
+        async function loadNotesForDay(date) {
+            mainContent.classList.remove('opacity-0', 'pointer-events-none');
+            const dayFormatted = date.split('-').reverse().join('/');
+            dateLabel.textContent = `📅 DATA: ${dayFormatted}`;
+            dateBadge.classList.remove('hidden');
+            const docSnap = await getDoc(doc(db, 'manual_agenda', date));
+            currentNotes = docSnap.exists() ? docSnap.data().notes : [];
+            renderNotes(currentNotes);
+        }
+
+        function renderNotes(notes) {
+            if (!notes || notes.length === 0) {
+                notesList.innerHTML = '<p class="text-neutral-600 text-[10px] uppercase font-black text-center py-20 tracking-widest">Nenhuma anotação para hoje</p>';
+                return;
+            }
+            notesList.innerHTML = notes.map((note, index) => `
+                <div class="bg-black border border-neutral-800 p-5 rounded-xl flex gap-4 items-start animate-fade-in">
+                    <span class="bg-red-600/10 text-red-500 font-black italic text-xs w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-lg border border-red-500/20">${index + 1}</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="max-h-24 overflow-y-auto pr-2 note-content-scroll">
+                            <p class="text-[11px] text-neutral-300 uppercase leading-relaxed font-bold break-words">${note.text}</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-3 flex-shrink-0 pt-1">
+                        <button onclick="editNote(${note.id})" class="text-blue-500 hover:text-blue-400 text-[9px] font-black uppercase">Editar</button>
+                        <button onclick="deleteNote(${note.id})" class="text-white hover:text-red-500 text-[9px] font-black uppercase">Excluir</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.editNote = (id) => {
+            const note = currentNotes.find(n => n.id === id);
+            if (!note) return;
+            noteInput.value = note.text;
+            editingNoteId = id;
+            saveBtn.textContent = 'Atualizar';
+            noteInput.focus();
+        };
+
+        window.deleteNote = async (id) => {
+            if (!confirm("Deseja excluir esta anotação?")) return;
+            try {
+                const docRef = doc(db, 'manual_agenda', selectedDate);
+                const updatedNotes = currentNotes.filter(n => n.id !== id);
+                await updateDoc(docRef, { notes: updatedNotes });
+                await loadNotesForDay(selectedDate);
+            } catch (error) {
+                console.error("Erro ao excluir:", error);
+                alert("Erro ao excluir a anotação.");
+            }
+        };
+
+        saveBtn.addEventListener('click', async () => {
+            const text = noteInput.value.trim();
+            
+            if (!selectedDate) {
+                alert("Por favor, selecione uma data no calendário primeiro!");
+                return;
+            }
+            if (!text) {
+                alert("Digite uma descrição para o serviço!");
+                return;
+            }
+
+            try {
+                const docRef = doc(db, 'manual_agenda', selectedDate);
+                
+                if (editingNoteId) {
+                    const updatedNotes = currentNotes.map(n => 
+                        n.id === editingNoteId ? { ...n, text } : n
+                    );
+                    await updateDoc(docRef, { notes: updatedNotes });
+                    editingNoteId = null;
+                    saveBtn.textContent = 'Salvar';
+                } else {
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) await updateDoc(docRef, { notes: arrayUnion({ text, id: Date.now() }) });
+                    else await setDoc(docRef, { notes: [{ text, id: Date.now() }] });
+                }
+                
+                noteInput.value = '';
+                await loadNotesForDay(selectedDate);
+                alert("Agenda atualizada!");
+            } catch (error) {
+                console.error("Erro ao salvar:", error);
+                alert("Erro ao salvar: Verifique sua conexão ou permissões do Firebase.");
+            }
+        });
+    </script>
+</body>
+</html>
