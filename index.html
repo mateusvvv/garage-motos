@@ -326,13 +326,13 @@
 
                 <!-- Próximos Agendamentos -->
                 <div class="bg-neutral-900 p-4 md:p-8 rounded-2xl border border-neutral-800">
-                    <div class="flex justify-between items-center mb-6">
-                        <h4 class="text-xl font-bold flex items-center gap-2 uppercase tracking-tight">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                        <h4 class="text-lg md:text-xl font-bold flex items-center gap-2 uppercase tracking-tight">
                             <span class="w-2 h-6 bg-red-600 block"></span> Próximos Agendamentos <span id="admin-appointments-total" class="text-neutral-500 text-sm italic ml-2"></span>
                         </h4>
-                        <div class="flex gap-2">
-                            <a href="agenda-manual.html" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-[10px] font-bold uppercase transition italic">Agenda Manual</a>
-                            <button id="btn-delete-all-appointments" onclick="deleteAllAppointments()" class="bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 rounded text-[10px] font-bold uppercase transition italic">Remover Todos</button>
+                        <div class="flex gap-2 w-full sm:w-auto">
+                            <a href="agenda-manual.html" class="flex-1 sm:flex-none text-center bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-[9px] md:text-[10px] font-bold uppercase transition italic whitespace-nowrap">Agenda Manual</a>
+                            <button id="btn-delete-all-appointments" onclick="deleteAllAppointments()" class="flex-1 sm:flex-none bg-black border border-red-600/50 text-red-500 hover:bg-red-600 hover:text-white px-3 py-1.5 rounded text-[9px] md:text-[10px] font-bold uppercase transition italic whitespace-nowrap">Remover Todos</button>
                         </div>
                     </div>
                     <div id="admin-appointments-list" class="space-y-4 max-h-[650px] overflow-y-auto pr-2">
