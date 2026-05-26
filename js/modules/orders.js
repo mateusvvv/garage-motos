@@ -1,5 +1,5 @@
 import { db } from '../../firebase-config.js';
-import { collection, deleteDoc, doc, getDocs, getDocsFromServer, onSnapshot, setDoc, writeBatch, query, orderBy, limit } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
+import { collection, deleteDoc, doc, getDocs, getDocsFromServer, onSnapshot, setDoc, writeBatch, query, orderBy } from 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js';
 import { state } from '../core/state.js';
 import { loadImageForPDF } from '../core/utils.js';
 import { decrementProductsStock, renderAdminStock } from './products.js';
@@ -136,11 +136,10 @@ function initOrdersSync() {
     }
     ordersSyncStarted = true;
 
-    // Criamos uma consulta (query) com limite e ordenação
+    // Mantém todas as O.S finalizadas em memória, porque o financeiro soma o histórico completo.
     const ordersQuery = query(
         collection(db, SERVICE_ORDERS_COLLECTION),
-        orderBy('osNumber', 'desc'), 
-        limit(20)
+        orderBy('osNumber', 'desc')
     );
 
     onSnapshot(ordersQuery, async (snapshot) => {
