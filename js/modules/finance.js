@@ -5,6 +5,12 @@ import { state } from '../core/state.js';
 let financeSyncStarted = false;
 const EXPENSES_COLLECTION = 'financeExpenses';
 
+function getCurrentMonthKey() {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    return `${month}/${today.getFullYear()}`;
+}
+
 function getPaymentBreakdown(os = {}) {
     const breakdown = { pix: 0, avista: 0, cartao: 0 };
     const services = Array.isArray(os.services) ? os.services : [];
@@ -300,14 +306,18 @@ function updateFinanceSummary(filteredOrders, filterLabel, filteredExpenses = []
 function updateRevenueFilterOptions() {
     const select = document.getElementById('revenue-filter');
     if (!select) return;
+    const shouldApplyDefault = !select.dataset.defaultPeriodApplied;
     const currentValue = select.value || 'all';
     select.innerHTML = `
         <option value="all">Faturamento Total</option>
         <option value="day">Por dia</option>
-        <option value="month">Por mês</option>
+        <option value="month">Consultar mês</option>
         <option value="year">Por ano</option>
     `;
-    select.value = ['all', 'day', 'month', 'year'].includes(currentValue) ? currentValue : 'all';
+    select.value = shouldApplyDefault
+        ? 'month'
+        : (['all', 'day', 'month', 'year'].includes(currentValue) ? currentValue : 'month');
+    select.dataset.defaultPeriodApplied = 'true';
 }
 
 function updateRevenuePeriodOptions() {
@@ -327,6 +337,12 @@ function updateRevenuePeriodOptions() {
     const days = new Set();
     const months = new Set();
     const years = new Set();
+    const currentMonthKey = getCurrentMonthKey();
+    const currentYear = currentMonthKey.split('/')[1];
+
+    months.add(currentMonthKey);
+    years.add(currentYear);
+
     state.serviceOrders.forEach(os => {
         const dateParts = getDateParts(os.date);
         if (dateParts) {
@@ -372,11 +388,16 @@ function updateRevenuePeriodOptions() {
         periodSelect.appendChild(option);
     });
 
-    if ([...periodSelect.options].some(option => option.value === currentValue)) {
-        periodSelect.value = currentValue;
+    const shouldApplyDefault = type === 'month' && !periodSelect.dataset.defaultPeriodApplied;
+    const targetValue = (shouldApplyDefault || (type === 'month' && !currentValue)) ? currentMonthKey : currentValue;
+
+    if ([...periodSelect.options].some(option => option.value === targetValue)) {
+        periodSelect.value = targetValue;
     } else {
         periodSelect.value = '';
     }
+
+    if (type === 'month') periodSelect.dataset.defaultPeriodApplied = 'true';
 }
 
 function getRevenueFilterLabel(filter) {
@@ -530,6 +551,9 @@ function updateProfitReportOptions() {
 
     const currentValue = select.value;
     const months = new Set();
+    const currentMonthKey = getCurrentMonthKey();
+    months.add(currentMonthKey);
+
     state.serviceOrders.forEach(order => {
         const monthKey = toMonthKey(order.date);
         if (monthKey) months.add(monthKey);
@@ -549,6 +573,8 @@ function updateProfitReportOptions() {
 
     if ([...select.options].some(option => option.value === currentValue)) {
         select.value = currentValue;
+    } else if ([...select.options].some(option => option.value === currentMonthKey)) {
+        select.value = currentMonthKey;
     }
 }
 
